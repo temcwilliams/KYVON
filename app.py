@@ -13,9 +13,9 @@ app = Flask(__name__)
 MODEL = "openai/gpt-oss-120b"
 WEB_MODEL = "groq/compound"
 
-MEMORY_FILE = "data/jarvis_memory.json"
-ERROR_LOG = "data/jarvis_errors.log"
-REPAIR_LOG = "data/jarvis_repairs.json"
+MEMORY_FILE = "data/kyvon_memory.json"
+ERROR_LOG = "data/kyvon_errors.log"
+REPAIR_LOG = "data/kyvon_repairs.json"
 
 os.makedirs("data", exist_ok=True)
 
@@ -114,7 +114,7 @@ def get_location(latitude, longitude):
                 "zoom": 10
             },
             headers={
-                "User-Agent": "JARVIS-Personal-Assistant"
+                "User-Agent": "KYVON-Personal-Assistant"
             },
             timeout=10
         )
@@ -251,11 +251,11 @@ def get_weather(latitude, longitude):
 
 
 # ============================================================
-# JARVIS SYSTEM PROMPT
+# KYVON SYSTEM PROMPT
 # ============================================================
 
 SYSTEM_PROMPT = """
-You are JARVIS, a personal AI assistant.
+You are KYVON, a personal AI assistant.
 
 Personality:
 - Intelligent
@@ -266,7 +266,7 @@ Personality:
 - Occasionally humorous
 - Natural conversational style
 
-You are assisting the user through a personal JARVIS application.
+You are assisting the user through a personal KYVON application.
 
 Capabilities:
 - Answer questions
@@ -315,7 +315,7 @@ Current environment information:
 # AI
 # ============================================================
 
-def ask_jarvis(message, environment="No location information available."):
+def ask_kyvon(message, environment="No location information available."):
 
     prompt = SYSTEM_PROMPT.format(
         memory=memory_text(),
@@ -353,7 +353,7 @@ def web_search(query):
             {
                 "role": "system",
                 "content": (
-                    "You are JARVIS's web research system. "
+                    "You are KYVON's web research system. "
                     "Research the request and provide an accurate "
                     "and useful answer."
                 )
@@ -602,7 +602,7 @@ def chat():
             "No location or weather information available."
         )
 
-        result = ask_jarvis(
+        result = ask_kyvon(
             message,
             environment
         )
@@ -645,9 +645,9 @@ if __name__ == "__main__":
 
     print()
 
-    print("Jarvis: Web interface starting...")
+    print("Kyvon: Web interface starting...")
 
-    print("Jarvis: Systems online.")
+    print("Kyvon: Systems online.")
 
     print()
 

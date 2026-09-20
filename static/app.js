@@ -49,9 +49,9 @@ function requestLocation() {
     if (!navigator.geolocation) {
 
         addMessage(
-            "Jarvis",
+            "Kyvon",
             "Location services are not supported by this browser.",
-            "jarvis"
+            "kyvon"
         );
 
         return;
@@ -111,7 +111,7 @@ function requestLocation() {
                 };
 
                 console.log(
-                    "JARVIS environment:",
+                    "KYVON environment:",
                     currentEnvironment
                 );
 
@@ -146,9 +146,9 @@ function requestLocation() {
                 "LOCATION DENIED";
 
             addMessage(
-                "Jarvis",
+                "Kyvon",
                 "I don't currently have permission to access your location. You can enable Location Services for this site in your iPad browser settings.",
-                "jarvis"
+                "kyvon"
             );
         },
 
@@ -265,23 +265,23 @@ async function sendMessage() {
 
             throw new Error(
                 data.error ||
-                "JARVIS request failed."
+                "KYVON request failed."
             );
         }
 
         addMessage(
-            "Jarvis",
+            "Kyvon",
             data.response,
-            "jarvis"
+            "kyvon"
         );
 
     } catch (error) {
 
         addMessage(
-            "Jarvis",
+            "Kyvon",
             "I encountered an error: " +
             error.message,
-            "jarvis"
+            "kyvon"
         );
 
     } finally {
@@ -302,9 +302,9 @@ async function sendMessage() {
 async function runDiagnostics() {
 
     addMessage(
-        "Jarvis",
+        "Kyvon",
         "Running system diagnostics...",
-        "jarvis"
+        "kyvon"
     );
 
     try {
@@ -350,17 +350,17 @@ async function runDiagnostics() {
         }
 
         addMessage(
-            "Jarvis",
+            "Kyvon",
             result,
-            "jarvis"
+            "kyvon"
         );
 
     } catch (error) {
 
         addMessage(
-            "Jarvis",
+            "Kyvon",
             "Unable to run diagnostics.",
-            "jarvis"
+            "kyvon"
         );
     }
 }
@@ -386,9 +386,9 @@ async function showMemory() {
         ) {
 
             addMessage(
-                "Jarvis",
+                "Kyvon",
                 "I currently have no saved memories.",
-                "jarvis"
+                "kyvon"
             );
 
             return;
@@ -407,17 +407,17 @@ async function showMemory() {
         }
 
         addMessage(
-            "Jarvis",
+            "Kyvon",
             result,
-            "jarvis"
+            "kyvon"
         );
 
     } catch {
 
         addMessage(
-            "Jarvis",
+            "Kyvon",
             "Unable to access memory.",
-            "jarvis"
+            "kyvon"
         );
     }
 }
@@ -432,9 +432,9 @@ function clearConversation() {
     conversation.innerHTML = "";
 
     addMessage(
-        "Jarvis",
+        "Kyvon",
         "Conversation cleared.",
-        "jarvis"
+        "kyvon"
     );
 }
 
@@ -549,9 +549,9 @@ if ("webkitSpeechRecognition" in window) {
         () => {
 
             addMessage(
-                "Jarvis",
+                "Kyvon",
                 "Voice input is not supported by this browser.",
-                "jarvis"
+                "kyvon"
             );
         }
     );
