@@ -14,6 +14,7 @@ from kyvon.db import upgrade_database
 from kyvon.models import User
 from kyvon.services import auth_service
 from kyvon.services.memory_import import MemoryImportError, import_json_memories
+from kyvon.utils.crypto import generate_key
 
 cli = AppGroup("kyvon", help="KYVON administration.")
 
@@ -95,3 +96,9 @@ def import_memories(file_: Path | None):
             raise click.ClickException(str(error)) from error
     click.echo(f"Imported {result.imported} memories ({result.skipped} skipped) from {path}.")
     click.echo("The JSON file was left untouched as a backup.")
+
+
+@cli.command("generate-key")
+def generate_key_command():
+    """Print a new KYVON_ENCRYPTION_KEY (used to encrypt stored OAuth tokens)."""
+    click.echo(generate_key())

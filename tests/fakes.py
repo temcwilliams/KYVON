@@ -66,3 +66,157 @@ class FakeLLM:
                 raise RuntimeError("stream broke")
             yield StreamEvent("text", text=piece)
         yield StreamEvent("done", response=response)
+
+
+class FakeHTTPResponse:
+    def __init__(self, status=200, body=None):
+        self.status_code = status
+        self._body = body
+        self.headers = {"content-type": "application/json"}
+        self.text = "" if body is None else "json"
+
+    def json(self):
+        if self._body is None:
+            raise ValueError("no body")
+        return self._body
+
+
+class FakeGoogle:
+    """An in-memory stand-in for Google's OAuth and Calendar endpoints."""
+
+    def __init__(self):
+        self.calls: list[dict] = []
+        self.events: dict[str, dict] = {}
+        self.valid_refresh = {"refresh-1"}
+        self.valid_access: set[str] = set()
+        self.token_counter = 0
+        self.code = "good-code"
+        self.issue_refresh_token = True
+        self.token_status = 200
+        self.last_verifier: str | None = None
+        self.email = "owner@example.com"
+        self._next_id = 1
+
+    # -- request router
+    def request(self, method, url, headers=None, params=None, data=None, json=None, timeout=None):
+        self.calls.append(
+            {
+                "method": method,
+                "url": url,
+                "headers": headers,
+                "params": params,
+                "data": data,
+                "json": json,
+            }
+        )
+        if url == "https://oauth2.googleapis.com/token":
+            return self._token(data or {})
+        if url == "https://oauth2.googleapis.com/revoke":
+            return FakeHTTPResponse(200, {})
+        if not url.startswith("https://www.googleapis.com/calendar/v3"):
+            raise AssertionError(f"unexpected URL {url}")
+        token = (headers or {}).get("Authorization", "").removeprefix("Bearer ")
+        if token not in self.valid_access:
+            return FakeHTTPResponse(401, {"error": {"message": "Invalid Credentials"}})
+        path = url.removeprefix("https://www.googleapis.com/calendar/v3")
+        return self._api(method, path, params or {}, json)
+
+    def _token(self, data):
+        if self.token_status != 200:
+            return FakeHTTPResponse(self.token_status, {"error": "server_error"})
+        assert data.get("client_id") == "test-client-id"
+        assert data.get("client_secret") == "test-client-secret"
+        if data.get("grant_type") == "authorization_code":
+            self.last_verifier = data.get("code_verifier")
+            if data.get("code") != self.code:
+                return FakeHTTPResponse(400, {"error": "invalid_grant"})
+            refresh = "refresh-1" if self.issue_refresh_token else None
+        elif data.get("grant_type") == "refresh_token":
+            if data.get("refresh_token") not in self.valid_refresh:
+                return FakeHTTPResponse(
+                    400, {"error": "invalid_grant", "error_description": "Token revoked"}
+                )
+            refresh = None
+        else:
+            return FakeHTTPResponse(400, {"error": "unsupported_grant_type"})
+        self.token_counter += 1
+        access = f"access-{self.token_counter}"
+        self.valid_access.add(access)
+        body = {"access_token": access, "expires_in": 3600, "scope": "calendar.events"}
+        if refresh:
+            body["refresh_token"] = refresh
+        return FakeHTTPResponse(200, body)
+
+    # -- calendar API
+    def _api(self, method, path, params, body):
+        if path == "/users/me/calendarList":
+            return FakeHTTPResponse(
+                200,
+                {
+                    "items": [
+                        {
+                            "id": self.email,
+                            "summary": "Owner",
+                            "primary": True,
+                            "timeZone": "America/Chicago",
+                            "accessRole": "owner",
+                        },
+                        {
+                            "id": "work@group.calendar.google.com",
+                            "summary": "Work",
+                            "accessRole": "writer",
+                        },
+                    ]
+                },
+            )
+        parts = path.strip("/").split("/")  # calendars/<id>/events[/<eid>]
+        if parts[0] != "calendars" or parts[2] != "events":
+            return FakeHTTPResponse(404, {"error": {"message": "not found"}})
+        if len(parts) == 3 and method == "GET":
+            return FakeHTTPResponse(200, {"items": self._filter(params)})
+        if len(parts) == 3 and method == "POST":
+            event = dict(body)
+            event["id"] = f"evt{self._next_id}"
+            self._next_id += 1
+            event["status"] = "confirmed"
+            self.events[event["id"]] = event
+            return FakeHTTPResponse(200, event)
+        event = self.events.get(parts[3])
+        if event is None:
+            return FakeHTTPResponse(404, {"error": {"message": "Not Found"}})
+        if method == "GET":
+            return FakeHTTPResponse(200, event)
+        if method == "PATCH":
+            event.update(body)
+            return FakeHTTPResponse(200, event)
+        if method == "DELETE":
+            del self.events[parts[3]]
+            return FakeHTTPResponse(204, None)
+        return FakeHTTPResponse(405, {})
+
+    def _filter(self, params):
+        from datetime import datetime
+
+        def instant(value):
+            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+        def start_of(event):
+            raw = event["start"].get("dateTime") or event["start"]["date"] + "T00:00:00+00:00"
+            return instant(raw)
+
+        low, high = instant(params["timeMin"]), instant(params["timeMax"])
+        query = (params.get("q") or "").lower()
+        found = [
+            e
+            for e in self.events.values()
+            if low <= start_of(e) < high
+            and (not query or query in (e.get("summary", "") + e.get("description", "")).lower())
+        ]
+        return sorted(found, key=start_of)[: int(params.get("maxResults", 25))]
+
+    def add_event(self, summary, start, end, **extra):
+        event = {"id": f"evt{self._next_id}", "summary": summary, "status": "confirmed", **extra}
+        self._next_id += 1
+        event["start"], event["end"] = start, end
+        self.events[event["id"]] = event
+        return event

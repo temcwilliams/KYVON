@@ -8,7 +8,13 @@ from flask import Flask, current_app, jsonify
 from pydantic import ValidationError
 from werkzeug.exceptions import HTTPException
 
-from kyvon.services.errors import ConflictError, NotFoundError, ValidationFailure
+from kyvon.services.errors import (
+    ConflictError,
+    IntegrationError,
+    NotConnectedError,
+    NotFoundError,
+    ValidationFailure,
+)
 
 
 class ApiError(Exception):
@@ -39,6 +45,14 @@ def register_error_handlers(app: Flask) -> None:
     @app.errorhandler(ConflictError)
     def _conflict(error: ConflictError):
         return error_response(409, "conflict", str(error))
+
+    @app.errorhandler(NotConnectedError)
+    def _not_connected(error: NotConnectedError):
+        return error_response(409, "not_connected", str(error))
+
+    @app.errorhandler(IntegrationError)
+    def _integration_error(error: IntegrationError):
+        return error_response(502, "integration_error", str(error))
 
     @app.errorhandler(ValidationError)
     def _validation_error(error: ValidationError):

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
+import requests
 from flask import Flask, request, send_from_directory
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -43,6 +45,7 @@ class Services:
     environment_cache: EnvironmentCache
     registry: ToolRegistry
     executor: ToolExecutor | None = None
+    http: Any = None  # requests.Session-like; replaced by a fake in tests
 
 
 def create_app(
@@ -69,6 +72,7 @@ def create_app(
         login_throttle=FailureThrottle(),
         environment_cache=EnvironmentCache(),
         registry=build_registry(),
+        http=requests.Session(),
     )
     container.executor = ToolExecutor(container.registry, container)
     app.extensions["kyvon"] = container
@@ -92,10 +96,12 @@ def create_app(
         return send_from_directory(WEB_DIR, "index.html")
 
     from kyvon.api.v1.auth import bp as auth_bp
+    from kyvon.api.v1.calendar import bp as calendar_bp
     from kyvon.api.v1.chat import bp as chat_bp
     from kyvon.api.v1.conversations import bp as conversations_bp
     from kyvon.api.v1.memories import bp as memories_bp
     from kyvon.api.v1.routes import bp as v1_bp
+    from kyvon.api.v1.tasks import bp as tasks_bp
     from kyvon.api.v1.tools import bp as tools_bp
     from kyvon.cli import cli
 
@@ -105,5 +111,7 @@ def create_app(
     app.register_blueprint(conversations_bp)
     app.register_blueprint(memories_bp)
     app.register_blueprint(tools_bp)
+    app.register_blueprint(tasks_bp)
+    app.register_blueprint(calendar_bp)
     app.cli.add_command(cli)
     return app

@@ -6,3 +6,4 @@ sqlalchemy>=2.0,<3
 alembic>=1.13,<2
 pydantic>=2.8,<3
 gunicorn>=23,<27
+cryptography>=42

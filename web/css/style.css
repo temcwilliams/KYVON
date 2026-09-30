@@ -679,3 +679,42 @@ textarea {
     font-size: 12px;
     margin: 8px 0 0;
 }
+
+/* ---- tasks and calendar ---- */
+
+.task-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+
+    padding: 10px;
+}
+
+.task-row input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
+    flex: none;
+    padding: 0;
+}
+
+.task-row .item-body {
+    padding: 0;
+}
+
+.task.done .item-title {
+    text-decoration: line-through;
+    opacity: 0.55;
+}
+
+.task.overdue .item-meta {
+    color: #ff9a9a;
+    opacity: 1;
+}
+
+.section {
+    font-size: 12px;
+    letter-spacing: 2px;
+    font-weight: normal;
+    margin: 14px 0 8px;
+}

@@ -48,3 +48,39 @@ class MemoryUpdate(_Strict):
     text: str | None = Field(default=None, min_length=1, max_length=2000)
     category: str | None = Field(default=None, max_length=32)
     importance: int | None = None
+
+
+class TaskCreate(_Strict):
+    title: str = Field(min_length=1, max_length=200)
+    notes: str = Field(default="", max_length=2000)
+    priority: int | str = 2
+    due: str | None = Field(default=None, max_length=40)
+    recurrence: str | None = Field(default=None, max_length=8)
+    recurrence_interval: int = 1
+
+
+class TaskUpdate(_Strict):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    notes: str | None = Field(default=None, max_length=2000)
+    priority: int | str | None = None
+    due: str | None = Field(default=None, max_length=40)
+    recurrence: str | None = Field(default=None, max_length=8)
+    recurrence_interval: int | None = None
+
+
+class CalendarEventCreate(_Strict):
+    title: str = Field(min_length=1, max_length=200)
+    start: str = Field(max_length=40)
+    end: str | None = Field(default=None, max_length=40)
+    all_day: bool | None = None
+    location: str = Field(default="", max_length=300)
+    description: str = Field(default="", max_length=2000)
+    calendar_id: str | None = Field(default=None, max_length=256)
+
+
+class CalendarEventUpdate(_Strict):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    start: str | None = Field(default=None, max_length=40)
+    end: str | None = Field(default=None, max_length=40)
+    location: str | None = Field(default=None, max_length=300)
+    description: str | None = Field(default=None, max_length=2000)

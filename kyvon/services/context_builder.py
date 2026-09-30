@@ -69,6 +69,7 @@ class ContextBuilder:
         *,
         profile: str = "",
         memory: str = "",
+        reference: str = "",
         environment: str = "",
     ) -> BuiltContext:
         """Assemble system prompt + recent history. The newest message is always kept."""
@@ -89,7 +90,7 @@ class ContextBuilder:
         # Decide whether the summary can be included: it is only meaningful when older
         # messages have been cut off.
         prompt_no_summary = build_system_prompt(
-            profile=profile, memory=memory, environment=environment
+            profile=profile, memory=memory, reference=reference, environment=environment
         )
         budget = (
             self._limits.max_tokens
@@ -136,7 +137,11 @@ class ContextBuilder:
         summary = conversation.summary if older_exists and conversation.summary else ""
 
         system = build_system_prompt(
-            profile=profile, memory=memory, summary=summary or "", environment=environment
+            profile=profile,
+            memory=memory,
+            summary=summary or "",
+            reference=reference,
+            environment=environment,
         )
         messages = [{"role": "system", "content": system}] + [e for _, e in kept]
         return BuiltContext(

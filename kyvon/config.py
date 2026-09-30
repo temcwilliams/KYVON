@@ -47,6 +47,10 @@ _STRINGS: dict[str, tuple[str, str]] = {
     "model": ("KYVON_MODEL", DEFAULT_MODEL),
     "web_model": ("KYVON_WEB_MODEL", DEFAULT_WEB_MODEL),
     "host": ("KYVON_HOST", "0.0.0.0"),
+    "public_url": ("KYVON_PUBLIC_URL", "http://localhost:8080"),
+    "encryption_key": ("KYVON_ENCRYPTION_KEY", ""),
+    "google_client_id": ("GOOGLE_CLIENT_ID", ""),
+    "google_client_secret": ("GOOGLE_CLIENT_SECRET", ""),
 }
 
 _TRUE = ("1", "true", "yes", "on")
@@ -86,6 +90,12 @@ class Settings:
     tool_max_iterations: int = 5
     confirmation_ttl_minutes: int = 60
 
+    # Integrations (secrets are never printed; see __repr__)
+    public_url: str = "http://localhost:8080"  # how the browser reaches KYVON (OAuth redirects)
+    encryption_key: str = ""
+    google_client_id: str = ""
+    google_client_secret: str = ""
+
     # Requests and abuse limits
     llm_timeout_seconds: int = 60
     max_request_bytes: int = 1_000_000
@@ -105,6 +115,10 @@ class Settings:
     def db_url(self) -> str:
         """SQLAlchemy URL; defaults to SQLite at <data_dir>/kyvon.db."""
         return self.database_url or f"sqlite:///{self.data_dir / 'kyvon.db'}"
+
+    @property
+    def calendar_configured(self) -> bool:
+        return bool(self.google_client_id and self.google_client_secret and self.encryption_key)
 
     def __repr__(self) -> str:
         # Never print secrets, even by accident.

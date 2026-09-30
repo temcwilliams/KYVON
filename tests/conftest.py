@@ -12,6 +12,10 @@ def settings(tmp_path):
             "GROQ_API_KEY": "test-key",
             "KYVON_DATA_DIR": str(tmp_path / "data"),
             "KYVON_AUTO_TITLE_LLM": "false",
+            "KYVON_ENCRYPTION_KEY": TEST_ENCRYPTION_KEY,
+            "GOOGLE_CLIENT_ID": "test-client-id",
+            "GOOGLE_CLIENT_SECRET": "test-client-secret",
+            "KYVON_PUBLIC_URL": "https://kyvon.example.com",
         }
     )
 
@@ -23,6 +27,7 @@ def fake_llm():
     return FakeLLM()
 
 
+TEST_ENCRYPTION_KEY = "Ip9tPuY8_kM4PfVv3n1bL0HqUu0RzE7c0mV2xX3kQYc="  # test-only Fernet key
 TEST_USERNAME = "owner"
 TEST_PASSWORD = "correct horse battery"  # test-only value
 

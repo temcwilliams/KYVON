@@ -265,6 +265,7 @@ class ChatService:
             conversation,
             profile=self._profile_text(),
             memory=self._memory.retrieve_text(self._retrieval_query(user_row)),
+            reference=self._tool_digest(conversation),
             environment=self._environment_text(),
         )
         # The empty placeholder row is not part of the history sent to the model.
@@ -405,6 +406,36 @@ class ChatService:
             }
             if outcome is not None and outcome.pending and outcome.run_id not in pending_runs:
                 pending_runs.append(outcome.run_id)
+
+    def _tool_digest(self, conversation: Conversation) -> str:
+        """Ids and titles from the last few tool results, so "delete that event" works in a
+        later turn. Only a few short structural fields are kept, never whole results."""
+        rows = self._s.scalars(
+            select(Message)
+            .where(Message.conversation_id == conversation.id, Message.kind == "tool_result")
+            .order_by(Message.id.desc())
+            .limit(3)
+        ).all()
+        lines: list[str] = []
+        for row in reversed(rows):
+            try:
+                payload = json.loads(row.content)
+            except ValueError:
+                continue
+            data = payload.get("data") if isinstance(payload, dict) else None
+            items = data if isinstance(data, list) else [data] if isinstance(data, dict) else []
+            for item in items[:10]:
+                if not isinstance(item, dict) or "id" not in item:
+                    continue
+                fields = [
+                    " ".join(str(item[k]).split())[:80]
+                    for k in ("title", "name", "start", "due", "status")
+                    if item.get(k)
+                ]
+                lines.append(
+                    f"- {row.tool_name}: id={str(item['id'])[:64]} | " + " | ".join(fields)
+                )
+        return "\n".join(lines[-15:])
 
     def _pending_payload(self, run_ids: list[int]) -> list[dict]:
         from kyvon.models import ToolRun

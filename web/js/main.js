@@ -3,6 +3,8 @@
 import { currentUser, hideLogin, initLogin, logout, showLogin } from "./auth.js";
 import { newConversation, openConversation, sendMessage } from "./chat.js";
 import "./conversations.js";
+import "./tasks.js";
+import { handleOAuthReturn } from "./calendar.js";
 import { api } from "./api.js";
 import { runDiagnostics } from "./diagnostics.js";
 import { requestLocation } from "./env.js";
@@ -32,6 +34,7 @@ function start() {
     started = true;
 
     restoreLastConversation();
+    handleOAuthReturn();
     runDiagnostics();
     // Ask the device for location permission.
     requestLocation();
