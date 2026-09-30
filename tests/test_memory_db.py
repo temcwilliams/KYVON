@@ -89,8 +89,8 @@ def test_same_timestamp_ordering_stable(session, user):
     fixed = datetime(2026, 1, 1, tzinfo=UTC)
     svc = MemoryService(session, user.id, now=lambda: fixed)
     for i in range(3):
-        svc.add(f"m{i}")
-    assert [m["memory"] for m in svc.all()] == ["m0", "m1", "m2"]
+        svc.add(f"memory {i}")
+    assert [m["memory"] for m in svc.all()] == ["memory 0", "memory 1", "memory 2"]
 
 
 # ------------------------------------------------------------------ import

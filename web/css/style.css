@@ -593,3 +593,54 @@ header {
         transition: none;
     }
 }
+
+/* ---- forms inside panels ---- */
+
+.stack {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    margin-bottom: 12px;
+}
+
+.row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.row > input,
+.row > select {
+    flex: 1;
+    min-width: 0;
+}
+
+select,
+textarea {
+    background: #090909;
+    color: white;
+    border: 1px solid #333;
+    border-radius: 5px;
+    padding: 10px;
+    font-family: inherit;
+}
+
+.item-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    padding: 10px;
+}
+
+.note {
+    font-size: 12px;
+    min-height: 1.2em;
+    margin: 0 0 8px;
+}
+
+.note.error {
+    color: #ff9a9a;
+}

@@ -98,10 +98,14 @@ def test_environment_text_is_temporary_context(chat, llm, session):
     assert all("ENV TEXT" not in m.content for m in rows(session, result.conversation["id"]))
 
 
-def test_memory_is_injected(chat, llm, user, session):
-    MemoryService(session, user.id).add("likes tea")
-    chat.reply("hi")
-    assert "- likes tea" in llm.calls[0]["messages"][0]["content"]
+def test_relevant_memory_is_injected_and_irrelevant_is_not(chat, llm, user, session):
+    memory = MemoryService(session, user.id)
+    memory.add("my dog is named Rex")
+    memory.add("I work at a bakery")
+    chat.reply("what is my dog called?")
+    prompt = llm.calls[0]["messages"][0]["content"]
+    assert "- my dog is named Rex" in prompt
+    assert "bakery" not in prompt
 
 
 def test_usage_and_model_metadata_saved(chat, llm, session):
@@ -133,9 +137,9 @@ def test_memory_shortcut_saves_without_model(chat, llm, user, session):
     assert len(rows(session, result.conversation["id"])) == 2
 
 
-def test_remember_that_quirk_preserved(chat, user, session):
+def test_remember_that_no_longer_keeps_the_word_that(chat, user, session):
     chat.reply("remember that I am tall")
-    assert MemoryService(session, user.id).all()[0]["memory"] == "that I am tall"
+    assert MemoryService(session, user.id).all()[0]["memory"] == "I am tall"
 
 
 @pytest.mark.parametrize("phrase", ["don't forget that ", "keep in mind that "])

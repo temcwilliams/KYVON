@@ -13,7 +13,7 @@ from kyvon.services.memory_service import parse_memory_shortcut
         ("remember my dog is Rex", "my dog is Rex"),
         ("REMEMBER x", "x"),
         ("Remember   spaced  ", "spaced"),
-        ("remember that I am tall", "that I am tall"),  # known quirk
+        ("remember that I am tall", "I am tall"),  # the prototype kept "that"
         ("don't forget that milk is low", "milk is low"),
         ("Don't Forget That milk", "milk"),
         ("keep in mind that it rains", "it rains"),

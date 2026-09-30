@@ -113,7 +113,7 @@ def test_remember_flow_end_to_end(client, fake_llm):
     memories = client.get("/api/v1/memories").get_json()["memories"]
     assert [m["memory"] for m in memories] == ["my dog is Rex"]
 
-    post(client, "hi")
+    post(client, "how is my dog?")
     assert "- my dog is Rex" in fake_llm.calls[0]["messages"][0]["content"]
 
 
@@ -222,7 +222,7 @@ def test_unexpected_errors_are_json_logged_and_not_leaked(app, client, settings,
     def explode(*_args, **_kwargs):
         raise RuntimeError("secret internal detail")
 
-    monkeypatch.setattr("kyvon.api.v1.routes.MemoryService.all", explode)
+    monkeypatch.setattr("kyvon.services.memory_service.MemoryService.list", explode)
     response = client.get("/api/v1/memories")
     assert response.status_code == 500
     assert response.get_json() == {

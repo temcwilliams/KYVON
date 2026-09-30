@@ -98,6 +98,23 @@ def build_chat_service(session: Session | None = None, user_id: int | None = Non
         settings=svc.settings,
         llm=svc.llm,
         conversations=ConversationService(session, user_id),
-        memory=MemoryService(session, user_id, max_memories=svc.settings.memory_max),
+        memory=MemoryService(
+            session,
+            user_id,
+            max_memories=svc.settings.memory_max,
+            retrieval_k=svc.settings.memory_retrieval_k,
+        ),
         environment_text=lambda: render_environment(svc.environment_cache.get(user_id)),
+    )
+
+
+def build_memory_service(session: Session | None = None, user_id: int | None = None):
+    from kyvon.services.memory_service import MemoryService
+
+    svc = services()
+    return MemoryService(
+        session or get_session(),
+        user_id if user_id is not None else g.user.id,
+        max_memories=svc.settings.memory_max,
+        retrieval_k=svc.settings.memory_retrieval_k,
     )

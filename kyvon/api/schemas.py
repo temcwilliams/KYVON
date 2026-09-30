@@ -36,3 +36,15 @@ class LoginRequest(_Strict):
     device_name: str = Field(default="", max_length=100)
     # True for the web client: the token goes in an HttpOnly cookie, not the body.
     cookie: bool = False
+
+
+class MemoryCreate(_Strict):
+    text: str = Field(min_length=1, max_length=2000)
+    category: str | None = Field(default=None, max_length=32)
+    importance: int | None = None
+
+
+class MemoryUpdate(_Strict):
+    text: str | None = Field(default=None, min_length=1, max_length=2000)
+    category: str | None = Field(default=None, max_length=32)
+    importance: int | None = None

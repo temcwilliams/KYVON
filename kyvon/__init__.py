@@ -86,6 +86,7 @@ def create_app(
     from kyvon.api.v1.auth import bp as auth_bp
     from kyvon.api.v1.chat import bp as chat_bp
     from kyvon.api.v1.conversations import bp as conversations_bp
+    from kyvon.api.v1.memories import bp as memories_bp
     from kyvon.api.v1.routes import bp as v1_bp
     from kyvon.cli import cli
 
@@ -93,5 +94,6 @@ def create_app(
     app.register_blueprint(auth_bp)
     app.register_blueprint(chat_bp)
     app.register_blueprint(conversations_bp)
+    app.register_blueprint(memories_bp)
     app.cli.add_command(cli)
     return app

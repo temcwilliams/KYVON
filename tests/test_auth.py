@@ -280,7 +280,7 @@ def test_memories_are_scoped_to_the_logged_in_user(app, client, session):
     session.commit()
     raw, _ = auth_service.issue_token(session, stranger, name="t", ttl_days=1)
     theirs = app.test_client().get("/api/v1/memories", headers={"Authorization": f"Bearer {raw}"})
-    assert theirs.get_json() == {"memories": []}
+    assert theirs.get_json()["memories"] == []
     assert [m["memory"] for m in client.get("/api/v1/memories").get_json()["memories"]] == ["mine"]
 
 

@@ -14,6 +14,7 @@ import logging
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from kyvon.config import Settings
@@ -28,12 +29,17 @@ from kyvon.services.conversation_service import (
     title_from_text,
 )
 from kyvon.services.errors import ValidationFailure
-from kyvon.services.memory_service import MemoryService, parse_memory_shortcut
+from kyvon.services.memory_service import (
+    MemoryService,
+    parse_memory_shortcut,
+    parse_recall_request,
+)
 from kyvon.services.summarizer import Summarizer
 
 log = logging.getLogger("kyvon.chat")
 
 MEMORY_SAVED_TEXT = "Understood. I have saved that to my memory."
+MEMORY_DUPLICATE_TEXT = "I already have that saved."
 WEB_PROMPT_TEXT = "What would you like me to research?"
 WEB_PREFIX = "web "
 CHAT_TEMPERATURE = 0.7
@@ -117,9 +123,13 @@ class ChatService:
 
         shortcut = parse_memory_shortcut(text)
         if shortcut is not None:
-            self._memory.add(shortcut)
+            yield from self._remember(conversation, user_row, shortcut)
+            return
+
+        is_recall, topic = parse_recall_request(text)
+        if is_recall:
             yield from self._finish_fixed(
-                conversation, user_row, MEMORY_SAVED_TEXT, {"memory_saved": True}
+                conversation, user_row, self._memory.recall_text(topic), {"recall": True}
             )
             return
 
@@ -167,6 +177,36 @@ class ChatService:
         yield {"type": "delta", "text": text}
         yield self._done(conversation, row, flags)
 
+    def _remember(self, conversation: Conversation, user_row: Message, text: str) -> Iterator[dict]:
+        try:
+            result = self._memory.add(text)
+        except ValidationFailure as problem:
+            # Not an error: explain why nothing was saved (too short, looks like a secret...).
+            yield from self._finish_fixed(
+                conversation, user_row, str(problem), {"memory_saved": False}
+            )
+            return
+        reply = MEMORY_SAVED_TEXT if result.created else MEMORY_DUPLICATE_TEXT
+        yield from self._finish_fixed(
+            conversation, user_row, reply, {"memory_saved": result.created}
+        )
+
+    def _retrieval_query(self, user_row: Message) -> str:
+        """What to match memories against: this message plus the previous user message,
+        so a follow-up like "and tomorrow?" still finds the right memories."""
+        previous = self._s.scalar(
+            select(Message.content)
+            .where(
+                Message.conversation_id == user_row.conversation_id,
+                Message.role == "user",
+                Message.kind == "message",
+                Message.id < user_row.id,
+            )
+            .order_by(Message.id.desc())
+            .limit(1)
+        )
+        return f"{previous[:300]} {user_row.content}" if previous else user_row.content
+
     def _web(self, conversation: Conversation, user_row: Message, query: str) -> Iterator[dict]:
         row = self._conversations.add_message(
             conversation, "assistant", "", status="partial", model=self._settings.web_model
@@ -196,7 +236,7 @@ class ChatService:
         built = ContextBuilder(self._s, self._limits).build(
             conversation,
             profile=self._profile_text(),
-            memory=self._memory.retrieve_text(user_row.content),
+            memory=self._memory.retrieve_text(self._retrieval_query(user_row)),
             environment=self._environment_text(),
         )
         # The empty placeholder row is not part of the history sent to the model.

@@ -34,12 +34,6 @@ def status():
     return jsonify({"online": overall_ok(results), "diagnostics": results})
 
 
-@bp.get("/memories")
-@login_required
-def list_memories():
-    return jsonify({"memories": MemoryService(get_session(), g.user.id).all()})
-
-
 @bp.post("/environment")
 @login_required
 def environment():

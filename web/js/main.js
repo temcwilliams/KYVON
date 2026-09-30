@@ -6,7 +6,7 @@ import "./conversations.js";
 import { api } from "./api.js";
 import { runDiagnostics } from "./diagnostics.js";
 import { requestLocation } from "./env.js";
-import { showMemory } from "./memory.js";
+import { openMemoryPanel } from "./memory.js";
 import { initDrawer } from "./panels.js";
 import { state } from "./state.js";
 import { clearConversation, say, setStatus } from "./ui.js";
@@ -49,7 +49,7 @@ function bindControls() {
     document.getElementById("systemButton").addEventListener("click", () =>
         runDiagnostics({ deep: true })
     );
-    document.getElementById("memoryButton").addEventListener("click", showMemory);
+    document.getElementById("memoryButton").addEventListener("click", openMemoryPanel);
     document.getElementById("clearButton").addEventListener("click", () => {
         newConversation();
     });

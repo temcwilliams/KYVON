@@ -110,6 +110,6 @@ def test_imported_memories_reach_the_prompt(app, client, fake_llm, settings, own
         json.dumps([{"date": "2026-03-01T10:00:00", "memory": "old fact"}])
     )
     app.test_cli_runner().invoke(args=["kyvon", "import-memories"])
-    client.post("/api/v1/chat", json={"message": "hi"})
+    client.post("/api/v1/chat", json={"message": "tell me the old fact"})
     assert "- old fact" in fake_llm.calls[0]["messages"][0]["content"]
     assert ApiToken and make_app  # keep imports used
