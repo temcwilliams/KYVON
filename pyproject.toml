@@ -5,7 +5,8 @@ pythonpath = ["."]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-extend-exclude = [".venv"]
+# app.py is the legacy prototype; left untouched until replaced by kyvon/.
+extend-exclude = [".venv", "app.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]

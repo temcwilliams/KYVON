@@ -10,7 +10,6 @@ import sys
 
 import pytest
 
-
 # ---------------------------------------------------------------- startup
 
 
@@ -220,9 +219,7 @@ class FakeResponse:
 
 def fake_requests_get(url, **kwargs):
     if "nominatim" in url:
-        return FakeResponse(
-            {"address": {"town": "Testville", "state": "TX", "country": "USA"}}
-        )
+        return FakeResponse({"address": {"town": "Testville", "state": "TX", "country": "USA"}})
     return FakeResponse(
         {
             "timezone": "America/Chicago",
