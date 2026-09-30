@@ -49,6 +49,7 @@ def create_app(
     settings.data_dir.mkdir(parents=True, exist_ok=True)
 
     app = Flask(__name__, static_folder=str(WEB_DIR), static_url_path="/static")
+    app.logger.setLevel(settings.log_level)
     error_log = ErrorLog(settings.error_log)
     engine = make_engine(settings.db_url)
     app.extensions["kyvon"] = Services(

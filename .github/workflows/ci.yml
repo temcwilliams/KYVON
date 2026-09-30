@@ -22,3 +22,32 @@ jobs:
         run: ruff format --check .
       - name: Tests
         run: pytest
+      - name: Migrations apply to a fresh database
+        env:
+          GROQ_API_KEY: ci-placeholder
+          KYVON_DATA_DIR: ${{ runner.temp }}/kyvon-data
+        run: flask --app wsgi kyvon db-upgrade
+      - name: JavaScript syntax check
+        run: |
+          for f in web/js/*.js; do
+            cp "$f" "$RUNNER_TEMP/check.mjs"
+            node --check "$RUNNER_TEMP/check.mjs"
+          done
+
+  docker:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t kyvon:ci .
+
+  secrets:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan for committed secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

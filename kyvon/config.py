@@ -16,6 +16,7 @@ from dotenv import find_dotenv, load_dotenv
 DEFAULT_MODEL = "openai/gpt-oss-120b"
 DEFAULT_WEB_MODEL = "groq/compound"
 VALID_ENVS = ("development", "testing", "production")
+VALID_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 
 
 class ConfigError(RuntimeError):
@@ -28,12 +29,10 @@ class Settings:
     model: str = DEFAULT_MODEL
     web_model: str = DEFAULT_WEB_MODEL
     env: str = "development"
-    secret_key: str = ""
     host: str = "0.0.0.0"
     port: int = 8080
     log_level: str = "INFO"
     data_dir: Path = Path("data")
-    allowed_origins: tuple[str, ...] = ()
     database_url: str = ""
     token_ttl_days: int = 30
     cookie_secure: bool = False
@@ -57,7 +56,7 @@ class Settings:
         return (
             f"Settings(env={self.env!r}, model={self.model!r}, web_model={self.web_model!r}, "
             f"host={self.host!r}, port={self.port}, data_dir={str(self.data_dir)!r}, "
-            "groq_api_key='***', secret_key='***')"
+            "groq_api_key='***')"
         )
 
     @classmethod
@@ -83,6 +82,10 @@ class Settings:
         env = get("KYVON_ENV", "development").lower()
         if env not in VALID_ENVS:
             raise ConfigError(f"KYVON_ENV must be one of {', '.join(VALID_ENVS)} (got {env!r}).")
+
+        log_level = get("LOG_LEVEL", "INFO").upper()
+        if log_level not in VALID_LOG_LEVELS:
+            raise ConfigError(f"LOG_LEVEL must be one of {', '.join(VALID_LOG_LEVELS)}.")
 
         api_key = get("GROQ_API_KEY")
         if require_api_key and not api_key:
@@ -110,19 +113,15 @@ class Settings:
         secure_default = "true" if env == "production" else "false"
         cookie_secure = get("KYVON_COOKIE_SECURE", secure_default).lower() in ("1", "true", "yes")
 
-        origins = tuple(o.strip() for o in get("ALLOWED_ORIGINS").split(",") if o.strip())
-
         return cls(
             groq_api_key=api_key,
             model=get("KYVON_MODEL", DEFAULT_MODEL),
             web_model=get("KYVON_WEB_MODEL", DEFAULT_WEB_MODEL),
             env=env,
-            secret_key=get("SECRET_KEY"),
             host=get("KYVON_HOST", "0.0.0.0"),
             port=port,
-            log_level=get("LOG_LEVEL", "INFO").upper(),
+            log_level=log_level,
             data_dir=Path(get("KYVON_DATA_DIR", "data")),
-            allowed_origins=origins,
             database_url=get("DATABASE_URL"),
             token_ttl_days=token_ttl_days,
             cookie_secure=cookie_secure,

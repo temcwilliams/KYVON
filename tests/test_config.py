@@ -40,13 +40,11 @@ def test_overrides():
             "PORT": "9000",
             "KYVON_DATA_DIR": "/var/kyvon",
             "KYVON_ENV": "Production",
-            "ALLOWED_ORIGINS": "https://a.example, https://b.example",
         }
     )
     assert (s.model, s.web_model, s.port) == ("m1", "m2", 9000)
     assert s.data_dir == Path("/var/kyvon")
     assert s.env == "production"
-    assert s.allowed_origins == ("https://a.example", "https://b.example")
 
 
 @pytest.mark.parametrize("port", ["abc", "0", "70000"])
@@ -61,9 +59,8 @@ def test_bad_env_name():
 
 
 def test_repr_hides_secrets():
-    s = Settings.from_env({"GROQ_API_KEY": "super-secret", "SECRET_KEY": "also-secret"})
+    s = Settings.from_env({"GROQ_API_KEY": "super-secret"})
     assert "super-secret" not in repr(s)
-    assert "also-secret" not in repr(s)
 
 
 def test_dotenv_loaded_but_real_env_wins(tmp_path, monkeypatch):
@@ -74,3 +71,27 @@ def test_dotenv_loaded_but_real_env_wins(tmp_path, monkeypatch):
     s = Settings.from_env(load_dotenv_file=True)
     assert s.groq_api_key == "from-file"
     assert s.model == "env-model"
+
+
+def test_bad_log_level():
+    with pytest.raises(ConfigError, match="LOG_LEVEL"):
+        Settings.from_env({"GROQ_API_KEY": "k", "LOG_LEVEL": "loud"})
+
+
+def test_log_level_case_insensitive():
+    assert Settings.from_env({"GROQ_API_KEY": "k", "LOG_LEVEL": "debug"}).log_level == "DEBUG"
+
+
+def test_cookie_secure_defaults_by_environment():
+    dev = Settings.from_env({"GROQ_API_KEY": "k"})
+    prod = Settings.from_env({"GROQ_API_KEY": "k", "KYVON_ENV": "production"})
+    override = Settings.from_env(
+        {"GROQ_API_KEY": "k", "KYVON_ENV": "production", "KYVON_COOKIE_SECURE": "false"}
+    )
+    assert (dev.cookie_secure, prod.cookie_secure, override.cookie_secure) == (False, True, False)
+
+
+@pytest.mark.parametrize("value", ["x", "0"])
+def test_bad_token_ttl(value):
+    with pytest.raises(ConfigError, match="TTL"):
+        Settings.from_env({"GROQ_API_KEY": "k", "KYVON_TOKEN_TTL_DAYS": value})

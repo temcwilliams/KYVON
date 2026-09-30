@@ -1,0 +1,22 @@
+# Example systemd unit for the Ubuntu VM. Review the paths before installing:
+#   sudo cp deploy/kyvon.service /etc/systemd/system/kyvon.service
+#   sudo systemctl daemon-reload && sudo systemctl restart kyvon
+# See docs/DEPLOYMENT.md for the full procedure.
+[Unit]
+Description=KYVON assistant
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=traxc93
+WorkingDirectory=/home/traxc93/kyvon-assistant
+# Secrets (GROQ_API_KEY, ...) live in this file, not in the unit. chmod 600 it.
+EnvironmentFile=/home/traxc93/kyvon-assistant/.env
+Environment=KYVON_ENV=production
+ExecStartPre=/home/traxc93/kyvon-assistant/.venv/bin/flask --app wsgi kyvon db-upgrade
+ExecStart=/home/traxc93/kyvon-assistant/.venv/bin/gunicorn -c gunicorn.conf.py wsgi:app
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
