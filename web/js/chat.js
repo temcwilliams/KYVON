@@ -60,7 +60,8 @@ let activeTool = null;
 
 function showToolActivity(event) {
     const label = TOOL_LABELS[event.status] || event.status;
-    const text = `⚙ ${event.name} — ${label}`;
+    const what = event.summary || event.name;
+    const text = `⚙ ${what} — ${label}`;
     if (event.status === "running") {
         activeTool = addMessage("", text, "tool");
     } else if (activeTool) {

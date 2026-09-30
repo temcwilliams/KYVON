@@ -35,6 +35,10 @@ _INTS: dict[str, tuple[str, int, int, int]] = {
     "confirmation_ttl_minutes": ("KYVON_CONFIRMATION_TTL_MINUTES", 60, 1, 10_080),
     "llm_timeout_seconds": ("KYVON_LLM_TIMEOUT_SECONDS", 60, 5, 600),
     "max_request_bytes": ("KYVON_MAX_REQUEST_BYTES", 1_000_000, 1024, 50_000_000),
+    "agent_max_depth": ("KYVON_AGENT_MAX_DEPTH", 1, 1, 3),
+    "agent_timeout_cap_seconds": ("KYVON_AGENT_TIMEOUT_CAP_SECONDS", 150, 10, 900),
+    "agent_max_tool_calls": ("KYVON_AGENT_MAX_TOOL_CALLS", 12, 1, 50),
+    "agent_max_concurrent": ("KYVON_AGENT_MAX_CONCURRENT", 2, 1, 10),
     "rate_limit_chat_per_minute": ("KYVON_RATE_LIMIT_CHAT", 30, 1, 10_000),
     "rate_limit_api_per_minute": ("KYVON_RATE_LIMIT_API", 300, 1, 100_000),
 }
@@ -95,6 +99,14 @@ class Settings:
     encryption_key: str = ""
     google_client_id: str = ""
     google_client_secret: str = ""
+
+    # Agents (Phase 6)
+    agent_max_depth: int = (
+        1  # how deep agents may call agents (1: only the main assistant delegates)
+    )
+    agent_timeout_cap_seconds: int = 150
+    agent_max_tool_calls: int = 12
+    agent_max_concurrent: int = 2
 
     # Requests and abuse limits
     llm_timeout_seconds: int = 60

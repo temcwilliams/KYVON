@@ -406,6 +406,12 @@ class ChatService:
             }
             if outcome is not None and outcome.pending and outcome.run_id not in pending_runs:
                 pending_runs.append(outcome.run_id)
+            if outcome is not None and outcome.status == "succeeded":
+                # A delegated agent may have queued actions for the user's approval.
+                data = outcome.content.get("data")
+                for queued in (data.get("pending_run_ids") or []) if isinstance(data, dict) else []:
+                    if queued not in pending_runs:
+                        pending_runs.append(queued)
 
     def _tool_digest(self, conversation: Conversation) -> str:
         """Ids and titles from the last few tool results, so "delete that event" works in a

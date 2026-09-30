@@ -11,6 +11,8 @@ from flask import Flask, request, send_from_directory
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from kyvon.agents.runner import AgentRunner
+from kyvon.agents.service import AgentService
 from kyvon.api.deps import close_session
 from kyvon.api.errors import register_error_handlers
 from kyvon.config import Settings
@@ -46,6 +48,8 @@ class Services:
     registry: ToolRegistry
     executor: ToolExecutor | None = None
     http: Any = None  # requests.Session-like; replaced by a fake in tests
+    agent_runner: Any = None
+    agent_service: Any = None
 
 
 def create_app(
@@ -75,6 +79,13 @@ def create_app(
         http=requests.Session(),
     )
     container.executor = ToolExecutor(container.registry, container)
+    container.agent_runner = AgentRunner(container)
+    container.agent_service = AgentService(container)
+    with container.session_factory() as startup_session:
+        try:
+            container.agent_service.recover_orphans(startup_session)
+        except Exception:  # the database may not be migrated yet (e.g. running db-upgrade)
+            startup_session.rollback()
     app.extensions["kyvon"] = container
 
     register_error_handlers(app)
@@ -95,6 +106,7 @@ def create_app(
     def index():
         return send_from_directory(WEB_DIR, "index.html")
 
+    from kyvon.api.v1.agents import bp as agents_bp
     from kyvon.api.v1.auth import bp as auth_bp
     from kyvon.api.v1.calendar import bp as calendar_bp
     from kyvon.api.v1.chat import bp as chat_bp
@@ -113,5 +125,6 @@ def create_app(
     app.register_blueprint(tools_bp)
     app.register_blueprint(tasks_bp)
     app.register_blueprint(calendar_bp)
+    app.register_blueprint(agents_bp)
     app.cli.add_command(cli)
     return app

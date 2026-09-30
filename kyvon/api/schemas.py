@@ -84,3 +84,9 @@ class CalendarEventUpdate(_Strict):
     end: str | None = Field(default=None, max_length=40)
     location: str | None = Field(default=None, max_length=300)
     description: str | None = Field(default=None, max_length=2000)
+
+
+class AgentRunCreate(_Strict):
+    agent: str = Field(min_length=1, max_length=32)
+    goal: str = Field(min_length=1, max_length=2000)
+    conversation_id: int | None = Field(default=None, ge=1)
