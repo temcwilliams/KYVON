@@ -141,3 +141,7 @@ class PushUnsubscribe(_Strict):
 
 class ApnsRegister(_Strict):
     device_token: str = Field(min_length=1, max_length=300)
+
+
+class ErrorResolve(_Strict):
+    note: str = Field(default="", max_length=500)

@@ -6,6 +6,7 @@ import "./conversations.js";
 import "./tasks.js";
 import "./notes.js";
 import "./automations.js";
+import "./admin.js";
 import { reportTimezone } from "./settings.js";
 import { startPolling, stopPolling } from "./notifications.js";
 import { handleOAuthReturn } from "./calendar.js";

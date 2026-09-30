@@ -4,6 +4,7 @@ from kyvon.models.agent_run import AgentRun
 from kyvon.models.automation import Automation, AutomationRun, Notification
 from kyvon.models.calendar import CalendarAccount, OAuthState
 from kyvon.models.conversation import Conversation, Message
+from kyvon.models.error_record import ErrorRecord
 from kyvon.models.memory import Memory
 from kyvon.models.push import PushSubscription
 from kyvon.models.task import Task
@@ -17,6 +18,7 @@ __all__ = [
     "AutomationRun",
     "CalendarAccount",
     "Conversation",
+    "ErrorRecord",
     "Memory",
     "Message",
     "Notification",

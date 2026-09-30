@@ -5,6 +5,7 @@ from __future__ import annotations
 import traceback
 
 from flask import Blueprint, g, jsonify, request
+from sqlalchemy import text
 
 from kyvon.api.deps import get_session, login_required, parse_json, services
 from kyvon.api.errors import ApiError
@@ -18,6 +19,17 @@ bp = Blueprint("v1", __name__, url_prefix="/api/v1")
 @bp.get("/health")
 def health():
     return jsonify({"status": "ok"})
+
+
+@bp.get("/health/ready")
+def ready():
+    """Readiness for load balancers and monitors: can we reach the database? No details."""
+    try:
+        with services().session_factory() as session:
+            session.execute(text("SELECT 1"))
+    except Exception:
+        return jsonify({"status": "unavailable"}), 503
+    return jsonify({"status": "ready"})
 
 
 @bp.get("/status")

@@ -61,7 +61,10 @@ def register(registry: ToolRegistry) -> None:
         changes = args.model_dump(exclude_none=True)
         if not changes:
             raise ToolError("Nothing to change.")
-        assert set(changes) <= set(ASSISTANT_EDITABLE)
+        if not set(changes) <= set(
+            ASSISTANT_EDITABLE
+        ):  # defence in depth; the schema already limits this
+            raise ToolError("Those settings cannot be changed by the assistant.")
         try:
             saved = update_settings(ctx.session, ctx.user_id, changes)
         except ValidationFailure as problem:

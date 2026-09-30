@@ -9,6 +9,7 @@ different way of working than a normal chat turn:
 * planner     - read-only look at tasks, calendar and weather, then a concrete plan
 * productivity - carries out multi-step organising (tasks, calendar drafts) for a plan
 * memory_curator - reviews what is known and *proposes* memory changes (never applies them)
+* diagnostics  - reads health, error and audit data to explain why something failed
 
 There is deliberately no "coding" agent: KYVON cannot execute code, so a coding agent would
 add nothing beyond the main model.
@@ -134,6 +135,23 @@ MEMORY_CURATOR = AgentDefinition(
     max_tool_calls=10,
 )
 
+DIAGNOSTICS = AgentDefinition(
+    name="diagnostics",
+    role="system diagnostics specialist",
+    description=(
+        "Investigates why something is not working: checks KYVON's health, recent errors and "
+        "failed tool runs, then explains the likely cause and what to try. Read-only."
+    ),
+    system_prompt=(
+        "Check system_status first, then recent_errors and recent_tool_runs. Explain findings in "
+        "plain language and suggest what the user can do. You cannot change anything."
+    ),
+    tools=("system_status", "recent_errors", "recent_tool_runs", "get_current_time"),
+    max_steps=5,
+    max_tool_calls=6,
+    timeout_seconds=90,
+)
+
 HERMES = AgentDefinition(
     name="hermes",
     role="general-purpose helper (running on the Hermes model)",
@@ -162,7 +180,7 @@ HERMES = AgentDefinition(
 )
 
 DEFINITIONS: dict[str, AgentDefinition] = {
-    d.name: d for d in (RESEARCHER, PLANNER, PRODUCTIVITY, MEMORY_CURATOR, HERMES)
+    d.name: d for d in (RESEARCHER, PLANNER, PRODUCTIVITY, MEMORY_CURATOR, DIAGNOSTICS, HERMES)
 }
 
 

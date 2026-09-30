@@ -910,3 +910,21 @@ button:disabled {
         overscroll-behavior: none;
     }
 }
+
+/* ---- admin ---- */
+
+.kv {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+
+    padding: 4px 0;
+
+    border-bottom: 1px solid #161616;
+
+    font-size: 12px;
+}
+
+.kv .v.good { color: #8fdc9a; }
+.kv .v.bad { color: #ff9a9a; }
+.admin-section { margin-bottom: 14px; }

@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import atexit
+import logging
+import re
+import time
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import requests
-from flask import Flask, Response, request, send_from_directory
+from flask import Flask, Response, g, request, send_from_directory
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -25,9 +29,11 @@ from kyvon.integrations.logseq import build_graph
 from kyvon.integrations.speech import GroqWhisper
 from kyvon.llm.base import LLMClient
 from kyvon.llm.groq_client import GroqClient
+from kyvon.logging_setup import configure_logging, request_id_var, user_id_var
 from kyvon.pwa import render_service_worker
 from kyvon.services.environment_context import EnvironmentCache
 from kyvon.services.environment_service import EnvironmentService
+from kyvon.services.observability import record_error
 from kyvon.services.push_service import build_push
 from kyvon.tools import build_registry
 from kyvon.tools.executor import ToolExecutor
@@ -35,6 +41,7 @@ from kyvon.tools.registry import ToolRegistry
 from kyvon.utils.error_log import ErrorLog
 from kyvon.utils.rate_limit import FailureThrottle
 
+_REQUEST_ID = re.compile(r"^[A-Za-z0-9._-]{8,64}$")
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 # The web client uses only same-origin scripts, styles and requests.
@@ -76,6 +83,7 @@ def create_app(
     """Application factory. ``llm`` / ``environment`` can be replaced in tests."""
     settings = settings or Settings.from_env(load_dotenv_file=True)
     settings.data_dir.mkdir(parents=True, exist_ok=True)
+    configure_logging(settings.log_level, json_format=settings.log_json)
 
     app = Flask(__name__, static_folder=str(WEB_DIR), static_url_path="/static")
     app.logger.setLevel(settings.log_level)
@@ -118,11 +126,55 @@ def create_app(
         container.scheduler.start()
         atexit.register(container.scheduler.stop)
 
+    def persist_error(kind: str, message: str, details: str) -> None:
+        with container.session_factory() as session:
+            record_error(
+                session,
+                kind,
+                message,
+                details,
+                request_id=request_id_var.get(),
+                user_id=user_id_var.get(),
+            )
+
+    error_log.sink = persist_error  # errors are also kept in the database for the admin view
+
     register_error_handlers(app)
     app.teardown_appcontext(close_session)
 
+    @app.before_request
+    def _start_request():
+        incoming = request.headers.get("X-Request-ID", "")
+        rid = incoming if _REQUEST_ID.fullmatch(incoming) else uuid.uuid4().hex[:16]
+        g.request_id = rid
+        g.started = time.perf_counter()
+        request_id_var.set(rid)
+        user_id_var.set(None)
+
+    @app.teardown_request
+    def _end_request(_exception=None):
+        request_id_var.set(None)
+        user_id_var.set(None)
+
+    access_log = logging.getLogger("kyvon.access")
+
     @app.after_request
     def _security_headers(response):
+        rid = getattr(g, "request_id", None)
+        if rid:
+            response.headers["X-Request-ID"] = rid
+            if not request.path.startswith("/static/") and request.path != "/api/v1/health":
+                # Method, path, status and timing only: never bodies, queries or headers.
+                access_log.info(
+                    "%s %s -> %s",
+                    request.method,
+                    request.path,
+                    response.status_code,
+                    extra={
+                        "status": response.status_code,
+                        "duration_ms": round((time.perf_counter() - g.started) * 1000, 1),
+                    },
+                )
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "same-origin")
@@ -152,6 +204,7 @@ def create_app(
         response.headers["Service-Worker-Allowed"] = "/"
         return response
 
+    from kyvon.api.v1.admin import bp as admin_bp
     from kyvon.api.v1.agents import bp as agents_bp
     from kyvon.api.v1.auth import bp as auth_bp
     from kyvon.api.v1.automations import bp as automations_bp
@@ -184,5 +237,6 @@ def create_app(
     app.register_blueprint(settings_bp)
     app.register_blueprint(push_bp)
     app.register_blueprint(voice_bp)
+    app.register_blueprint(admin_bp)
     app.cli.add_command(cli)
     return app

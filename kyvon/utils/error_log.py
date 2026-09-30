@@ -8,12 +8,25 @@ from pathlib import Path
 
 
 class ErrorLog:
-    def __init__(self, path: Path, *, now: Callable[[], datetime] = datetime.now):
+    def __init__(
+        self,
+        path: Path,
+        *,
+        now: Callable[[], datetime] = datetime.now,
+        sink: Callable[[str, str, str], None] | None = None,
+    ):
         self.path = Path(path)
         self._now = now
+        # Also record errors somewhere queryable (the database); never allowed to raise.
+        self.sink = sink
 
     def log(self, error_type: str, message: str, details: str = "") -> None:
         """Record an error. Logging must never raise, so failures are swallowed."""
+        if self.sink is not None:
+            try:
+                self.sink(error_type, message, details)
+            except Exception:
+                pass
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             with open(self.path, "a", encoding="utf-8") as f:

@@ -91,6 +91,7 @@ class Settings:
     database_url: str = ""
     token_ttl_days: int = 30
     cookie_secure: bool = False
+    log_json: bool = False  # one JSON object per log line (default on in production)
 
     # Conversation context (Phase 2)
     context_max_tokens: int = 6000
@@ -234,6 +235,10 @@ class Settings:
         for field, (name, default) in _STRINGS.items():
             values[field] = get(name, default)
 
+        log_json = (
+            get("KYVON_LOG_JSON", "true" if env == "production" else "false").lower() in _TRUE
+        )
+
         # Cookies default to Secure in production (HTTPS is terminated by the
         # Cloudflare Tunnel, so this is a setting rather than request.is_secure).
         secure_default = "true" if env == "production" else "false"
@@ -246,5 +251,6 @@ class Settings:
             data_dir=Path(get("KYVON_DATA_DIR", "data")),
             database_url=get("DATABASE_URL"),
             cookie_secure=cookie_secure,
+            log_json=log_json,
             **values,
         )

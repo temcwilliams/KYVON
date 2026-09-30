@@ -59,15 +59,20 @@ def make_session_factory(engine: Engine) -> sessionmaker[Session]:
     return sessionmaker(bind=engine, expire_on_commit=False)
 
 
-def upgrade_database(url: str, revision: str = "head") -> None:
-    """Apply Alembic migrations to ``url``."""
+def alembic_config(url: str):
     from pathlib import Path
 
-    from alembic import command
     from alembic.config import Config
 
     root = Path(__file__).resolve().parent.parent
     config = Config(str(root / "alembic.ini"))
     config.set_main_option("script_location", str(root / "migrations"))
     config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    command.upgrade(config, revision)
+    return config
+
+
+def upgrade_database(url: str, revision: str = "head") -> None:
+    """Apply Alembic migrations to ``url``."""
+    from alembic import command
+
+    command.upgrade(alembic_config(url), revision)

@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from kyvon.api.errors import ApiError
+from kyvon.logging_setup import user_id_var
 from kyvon.services import auth_service
 
 TOKEN_COOKIE = "kyvon_token"
@@ -80,6 +81,7 @@ def login_required(view):
 
         g.token = token
         g.user = token.user
+        user_id_var.set(token.user.id)
         g.auth_via = via
         return view(*args, **kwargs)
 
