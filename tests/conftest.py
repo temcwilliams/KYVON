@@ -39,3 +39,27 @@ def prototype(tmp_path, monkeypatch):
 @pytest.fixture
 def client(prototype):
     return prototype.app.test_client()
+
+
+# ---------------------------------------------------------------- new app factory
+
+
+@pytest.fixture
+def settings(tmp_path):
+    from kyvon.config import Settings
+
+    return Settings.from_env({"GROQ_API_KEY": "test-key", "KYVON_DATA_DIR": str(tmp_path / "data")})
+
+
+@pytest.fixture
+def fake_llm():
+    from tests.fakes import FakeLLM
+
+    return FakeLLM()
+
+
+@pytest.fixture
+def app(settings, fake_llm):
+    from kyvon import create_app
+
+    return create_app(settings, llm=fake_llm)
