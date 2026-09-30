@@ -173,3 +173,47 @@ def test_deep_status_reports_llm_error(client, fake_llm):
     body = client.get("/api/v1/status?deep=1").get_json()
     assert body["online"] is False
     assert body["diagnostics"][-1]["details"] == "no groq"
+
+
+# ---------------------------------------------------------------- web client
+
+
+def test_index_page_served(anon_client):
+    response = anon_client.get("/")
+    assert response.status_code == 200
+    assert b"<title>KYVON</title>" in response.data
+    assert b"J.A.R.V.I.S" not in response.data
+    assert "default-src 'self'" in response.headers["Content-Security-Policy"]
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "css/style.css",
+        "js/main.js",
+        "js/api.js",
+        "js/auth.js",
+        "js/chat.js",
+        "js/env.js",
+        "js/memory.js",
+        "js/diagnostics.js",
+        "js/voice.js",
+        "js/ui.js",
+    ],
+)
+def test_static_assets_served(anon_client, path):
+    assert anon_client.get(f"/static/{path}").status_code == 200
+
+
+def test_index_references_only_existing_assets(anon_client):
+    import re
+
+    html = anon_client.get("/").get_data(as_text=True)
+    for asset in re.findall(r'(?:src|href)="(/static/[^"]+)"', html):
+        assert anon_client.get(asset).status_code == 200, asset
+
+
+def test_page_has_no_inline_script_or_handlers(anon_client):
+    html = anon_client.get("/").get_data(as_text=True)
+    assert " onclick=" not in html
+    assert "<script>" not in html

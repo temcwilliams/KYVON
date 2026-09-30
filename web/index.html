@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#050505">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <title>KYVON</title>
+
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+
+    <div class="background"></div>
+
+    <main class="kyvon">
+
+        <header>
+            <div class="brand">KYVON</div>
+            <div id="status" class="status">CONNECTING</div>
+        </header>
+
+        <section class="core">
+            <div class="ring ring-one"></div>
+            <div class="ring ring-two"></div>
+            <div class="ring ring-three"></div>
+
+            <div class="core-center">
+                <div class="core-text">KYVON</div>
+                <div id="listening" class="listening">STANDBY</div>
+            </div>
+        </section>
+
+        <section id="conversation" class="conversation">
+            <div class="message kyvon-message">
+                <span class="speaker">Kyvon:</span>
+                <span>Systems initialized. How may I assist?</span>
+            </div>
+        </section>
+
+        <section class="input-area">
+            <input
+                id="messageInput"
+                type="text"
+                placeholder="Speak or type to KYVON..."
+                autocomplete="off"
+            >
+            <button id="sendButton">SEND</button>
+            <button id="micButton">🎙️</button>
+        </section>
+
+        <footer>
+            <button id="systemButton">SYSTEM</button>
+            <button id="memoryButton">MEMORY</button>
+            <button id="clearButton">CLEAR</button>
+            <button id="logoutButton">SIGN OUT</button>
+        </footer>
+
+    </main>
+
+    <div id="login" class="login" hidden>
+        <form id="loginForm">
+            <div class="login-title">KYVON</div>
+            <input
+                id="loginUsername"
+                type="text"
+                placeholder="Username"
+                autocomplete="username"
+                autocapitalize="none"
+                required
+            >
+            <input
+                id="loginPassword"
+                type="password"
+                placeholder="Password"
+                autocomplete="current-password"
+                required
+            >
+            <button type="submit">SIGN IN</button>
+            <div id="loginError" class="login-error" role="alert"></div>
+        </form>
+    </div>
+
+    <script type="module" src="/static/js/main.js"></script>
+
+</body>
+
+</html>

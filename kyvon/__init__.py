@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
-from flask import Flask, request
+from flask import Flask, request, send_from_directory
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -17,6 +18,13 @@ from kyvon.llm.groq_client import GroqClient
 from kyvon.services.environment_service import EnvironmentService
 from kyvon.utils.error_log import ErrorLog
 from kyvon.utils.rate_limit import FailureThrottle
+
+WEB_DIR = Path(__file__).resolve().parent.parent / "web"
+
+# The web client uses only same-origin scripts, styles and requests.
+CONTENT_SECURITY_POLICY = (
+    "default-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'"
+)
 
 
 @dataclass
@@ -40,7 +48,7 @@ def create_app(
     settings = settings or Settings.from_env(load_dotenv_file=True)
     settings.data_dir.mkdir(parents=True, exist_ok=True)
 
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder=str(WEB_DIR), static_url_path="/static")
     error_log = ErrorLog(settings.error_log)
     engine = make_engine(settings.db_url)
     app.extensions["kyvon"] = Services(
@@ -63,7 +71,13 @@ def create_app(
         response.headers.setdefault("Referrer-Policy", "same-origin")
         if request.path.startswith("/api/"):
             response.headers["Cache-Control"] = "no-store"
+        else:
+            response.headers.setdefault("Content-Security-Policy", CONTENT_SECURITY_POLICY)
         return response
+
+    @app.get("/")
+    def index():
+        return send_from_directory(WEB_DIR, "index.html")
 
     from kyvon.api.v1.auth import bp as auth_bp
     from kyvon.api.v1.routes import bp as v1_bp
