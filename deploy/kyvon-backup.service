@@ -1,0 +1,10 @@
+# Daily database backup (see kyvon-backup.timer).
+[Unit]
+Description=KYVON database backup
+
+[Service]
+Type=oneshot
+User=traxc93
+WorkingDirectory=/home/traxc93/kyvon-assistant
+EnvironmentFile=/home/traxc93/kyvon-assistant/.env
+ExecStart=/home/traxc93/kyvon-assistant/.venv/bin/flask --app wsgi kyvon backup --keep 14

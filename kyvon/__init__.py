@@ -73,6 +73,16 @@ class Services:
     push: Any = None  # web/native push sender (Phase 11), optional
     stt: Any = None  # SpeechToText | None
     rate_limiter: Any = None
+
+    def shutdown(self) -> None:
+        """Stop background work cleanly (called at process exit / SIGTERM)."""
+        for part in (self.scheduler, self.agent_service, self.executor):
+            try:
+                if part is not None:
+                    part.stop() if hasattr(part, "stop") else part.shutdown()
+            except Exception:
+                logging.getLogger("kyvon").exception("shutdown step failed")
+
     agent_service: Any = None
 
 
@@ -154,7 +164,17 @@ def create_app(
     app.extensions["kyvon"] = container
     if settings.scheduler_enabled and settings.env != "testing":
         container.scheduler.start()
-        atexit.register(container.scheduler.stop)
+    atexit.register(container.shutdown)
+    logging.getLogger("kyvon").info(
+        "KYVON starting: env=%s scheduler=%s calendar=%s hermes=%s logseq=%s push=%s voice=%s",
+        settings.env,
+        settings.scheduler_enabled,
+        settings.calendar_configured,
+        container.hermes is not None,
+        container.logseq is not None,
+        container.push is not None,
+        container.stt is not None,
+    )
 
     def persist_error(kind: str, message: str, details: str) -> None:
         with container.session_factory() as session:

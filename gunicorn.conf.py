@@ -11,6 +11,9 @@ threads = int(os.getenv("GUNICORN_THREADS", "4"))
 
 # Model calls (especially web research) can be slow.
 timeout = int(os.getenv("GUNICORN_TIMEOUT", "120"))
+# On SIGTERM (systemctl stop/restart) finish in-flight requests, then exit.
+graceful_timeout = int(os.getenv("GUNICORN_GRACEFUL_TIMEOUT", "30"))
+keepalive = 5
 
 accesslog = "-"
 errorlog = "-"
