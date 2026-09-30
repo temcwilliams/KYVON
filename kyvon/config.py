@@ -35,6 +35,7 @@ _INTS: dict[str, tuple[str, int, int, int]] = {
     "confirmation_ttl_minutes": ("KYVON_CONFIRMATION_TTL_MINUTES", 60, 1, 10_080),
     "llm_timeout_seconds": ("KYVON_LLM_TIMEOUT_SECONDS", 60, 5, 600),
     "max_request_bytes": ("KYVON_MAX_REQUEST_BYTES", 1_000_000, 1024, 50_000_000),
+    "max_audio_bytes": ("KYVON_MAX_AUDIO_BYTES", 10_000_000, 10_000, 100_000_000),
     "hermes_timeout_seconds": ("KYVON_HERMES_TIMEOUT_SECONDS", 90, 5, 600),
     "scheduler_tick_seconds": ("KYVON_SCHEDULER_TICK_SECONDS", 30, 1, 3600),
     "automation_max_per_user": ("KYVON_AUTOMATION_MAX_PER_USER", 50, 1, 1000),
@@ -56,6 +57,7 @@ _STRINGS: dict[str, tuple[str, str]] = {
     "model": ("KYVON_MODEL", DEFAULT_MODEL),
     "web_model": ("KYVON_WEB_MODEL", DEFAULT_WEB_MODEL),
     "host": ("KYVON_HOST", "0.0.0.0"),
+    "stt_model": ("KYVON_STT_MODEL", DEFAULT_STT_MODEL),
     "public_url": ("KYVON_PUBLIC_URL", "http://localhost:8080"),
     "encryption_key": ("KYVON_ENCRYPTION_KEY", ""),
     "google_client_id": ("GOOGLE_CLIENT_ID", ""),
@@ -139,6 +141,10 @@ class Settings:
     agent_timeout_cap_seconds: int = 150
     agent_max_tool_calls: int = 12
     agent_max_concurrent: int = 2
+
+    # Voice (Phase 13): server-side speech-to-text; text-to-speech runs in the client
+    stt_model: str = DEFAULT_STT_MODEL
+    max_audio_bytes: int = 10_000_000
 
     # Requests and abuse limits
     llm_timeout_seconds: int = 60

@@ -25,9 +25,9 @@ function csrfToken() {
     return match ? decodeURIComponent(match[1]) : "";
 }
 
-export async function api(path, { method = "GET", body, notifyUnauthorized = true } = {}) {
+export async function api(path, { method = "GET", body, form, notifyUnauthorized = true } = {}) {
     const headers = {};
-    if (body !== undefined) {
+    if (body !== undefined && form === undefined) {
         headers["Content-Type"] = "application/json";
     }
     if (method !== "GET" && method !== "HEAD") {
@@ -40,7 +40,8 @@ export async function api(path, { method = "GET", body, notifyUnauthorized = tru
             method,
             headers,
             credentials: "same-origin",
-            body: body === undefined ? undefined : JSON.stringify(body),
+            // A FormData body sets its own multipart Content-Type (with the boundary).
+            body: form !== undefined ? form : body === undefined ? undefined : JSON.stringify(body),
         });
     } catch {
         throw new ApiError("Unable to reach the KYVON server.", 0, "network");

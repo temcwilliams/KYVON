@@ -270,3 +270,18 @@ class FakeHermesHTTP:
                 else _json.dumps(arguments),
             },
         }
+
+
+class FakeSTT:
+    """Speech-to-text stand-in: records what it was given."""
+
+    def __init__(self, text="hello from the recording"):
+        self.text = text
+        self.calls: list[dict] = []
+        self.error: Exception | None = None
+
+    def transcribe(self, audio, filename, *, language=None):
+        self.calls.append({"size": len(audio), "filename": filename, "language": language})
+        if self.error:
+            raise self.error
+        return self.text

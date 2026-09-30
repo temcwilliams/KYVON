@@ -34,6 +34,10 @@ TEST_PASSWORD = "correct horse battery"  # test-only value
 
 
 def make_app(settings, **kwargs):
+    if "stt" not in kwargs:
+        from tests.fakes import FakeSTT
+
+        kwargs["stt"] = FakeSTT()  # never let a test reach the real speech service
     """Build an app with an empty, schema-initialised database."""
     from kyvon import create_app
     from kyvon.db import Base
@@ -94,8 +98,15 @@ def fake_environment(settings):
 
 
 @pytest.fixture
-def app(settings, fake_llm, fake_environment):
-    return make_app(settings, llm=fake_llm, environment=fake_environment)
+def fake_stt():
+    from tests.fakes import FakeSTT
+
+    return FakeSTT()
+
+
+@pytest.fixture
+def app(settings, fake_llm, fake_environment, fake_stt):
+    return make_app(settings, llm=fake_llm, environment=fake_environment, stt=fake_stt)
 
 
 @pytest.fixture

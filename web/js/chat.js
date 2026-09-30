@@ -87,6 +87,7 @@ export async function sendMessage() {
     const message = input.value.trim();
     if (!message) return;
 
+    emit("turn:start");
     addMessage("You", message, "user");
     input.value = "";
     setStatus("THINKING");

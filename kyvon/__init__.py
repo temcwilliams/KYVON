@@ -22,6 +22,7 @@ from kyvon.config import Settings
 from kyvon.db import make_engine, make_session_factory
 from kyvon.integrations.hermes import build_hermes
 from kyvon.integrations.logseq import build_graph
+from kyvon.integrations.speech import GroqWhisper
 from kyvon.llm.base import LLMClient
 from kyvon.llm.groq_client import GroqClient
 from kyvon.pwa import render_service_worker
@@ -61,6 +62,7 @@ class Services:
     automation_runner: Any = None
     scheduler: Any = None
     push: Any = None  # web/native push sender (Phase 11), optional
+    stt: Any = None  # SpeechToText | None
     agent_service: Any = None
 
 
@@ -69,6 +71,7 @@ def create_app(
     *,
     llm: LLMClient | None = None,
     environment: EnvironmentService | None = None,
+    stt: Any = None,
 ) -> Flask:
     """Application factory. ``llm`` / ``environment`` can be replaced in tests."""
     settings = settings or Settings.from_env(load_dotenv_file=True)
@@ -76,6 +79,10 @@ def create_app(
 
     app = Flask(__name__, static_folder=str(WEB_DIR), static_url_path="/static")
     app.logger.setLevel(settings.log_level)
+    # Uploads (voice) may exceed the JSON limit; JSON bodies are checked separately.
+    app.config["MAX_CONTENT_LENGTH"] = (
+        max(settings.max_request_bytes, settings.max_audio_bytes) + 65536
+    )
     error_log = ErrorLog(settings.error_log)
     engine = make_engine(settings.db_url)
     container = Services(
@@ -92,6 +99,9 @@ def create_app(
     )
     container.hermes = build_hermes(settings, container.http)
     container.push = build_push(settings, container.http)
+    container.stt = stt or (
+        GroqWhisper(settings.groq_api_key, settings.stt_model) if settings.groq_api_key else None
+    )
     container.logseq = build_graph(settings.logseq_dir)
     container.executor = ToolExecutor(container.registry, container)
     container.agent_runner = AgentRunner(container)
@@ -156,6 +166,7 @@ def create_app(
     from kyvon.api.v1.settings import bp as settings_bp
     from kyvon.api.v1.tasks import bp as tasks_bp
     from kyvon.api.v1.tools import bp as tools_bp
+    from kyvon.api.v1.voice import bp as voice_bp
     from kyvon.cli import cli
 
     app.register_blueprint(v1_bp)
@@ -172,5 +183,6 @@ def create_app(
     app.register_blueprint(automations_bp)
     app.register_blueprint(settings_bp)
     app.register_blueprint(push_bp)
+    app.register_blueprint(voice_bp)
     app.cli.add_command(cli)
     return app

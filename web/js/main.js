@@ -18,7 +18,7 @@ import { openMemoryPanel } from "./memory.js";
 import { initDrawer } from "./panels.js";
 import { state } from "./state.js";
 import { clearConversation, say, setStatus } from "./ui.js";
-import { initVoice } from "./voice.js";
+import { initVoice, refreshVoiceConfig } from "./voice.js";
 
 const input = document.getElementById("messageInput");
 let started = false;
@@ -46,6 +46,7 @@ function start() {
         restoreLastConversation();
     }
     reportTimezone();
+    refreshVoiceConfig();
     startPolling();
     handleOAuthReturn();
     runDiagnostics();

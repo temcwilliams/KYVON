@@ -36,6 +36,9 @@ def close_session(_exception=None) -> None:
 
 
 def parse_json[T: BaseModel](model: type[T]) -> T:
+    limit = services().settings.max_request_bytes
+    if (request.content_length or 0) > limit:
+        raise ApiError(413, "too_large", "That request is too large.")
     data = request.get_json(silent=True)
     if not isinstance(data, dict):
         raise ApiError(400, "invalid_request", "Request body must be a JSON object.")
