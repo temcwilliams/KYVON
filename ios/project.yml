@@ -1,0 +1,43 @@
+# XcodeGen spec: `brew install xcodegen && cd ios && xcodegen generate` creates KYVON.xcodeproj.
+# (The project file itself is generated, so it is not kept in git.)
+name: KYVON
+options:
+  bundleIdPrefix: app.kyvon
+  deploymentTarget:
+    iOS: "16.0"
+packages:
+  KYVON:
+    path: .
+targets:
+  KYVON:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+    supportedDestinations: [iOS]
+    sources: [App]
+    dependencies:
+      - package: KYVON
+        product: KYVONApp
+      - package: KYVON
+        product: KYVONKit
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: KYVON
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        UIBackgroundModes: [remote-notification]
+        NSLocationWhenInUseUsageDescription: KYVON uses your approximate location for local weather and the right time zone.
+        NSMicrophoneUsageDescription: KYVON records your voice only while you hold dictation, and sends it to your own server to be transcribed.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+    entitlements:
+      path: App/KYVON.entitlements
+      properties:
+        aps-environment: development   # becomes "production" for App Store / TestFlight builds
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.kyvon.KYVON
+        TARGETED_DEVICE_FAMILY: "1,2"   # iPhone and iPad
+        SWIFT_VERSION: "5.9"

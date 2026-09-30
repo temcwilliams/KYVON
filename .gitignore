@@ -31,3 +31,10 @@ dist/
 # OS / editor
 .DS_Store
 .idea/
+
+# iOS
+ios/.build/
+ios/KYVON.xcodeproj/
+ios/App/Info.plist
+ios/App/KYVON.entitlements
+*.xcuserstate
