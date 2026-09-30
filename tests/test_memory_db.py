@@ -117,6 +117,26 @@ def test_import_is_idempotent(session, user, tmp_path):
     assert len(MemoryService(session, user.id)) == 1
 
 
+def test_import_without_dates_is_still_idempotent(session, user, tmp_path):
+    f = tmp_path / "m.json"
+    f.write_text(json.dumps([{"memory": "no date here"}, {"memory": "nor here", "date": "junk"}]))
+    assert import_json_memories(session, user.id, f).imported == 2
+    again = import_json_memories(session, user.id, f)
+    assert (again.imported, again.skipped) == (0, 2)
+    assert session.query(Memory).filter_by(user_id=user.id).count() == 2
+
+
+def test_import_refuses_entries_that_look_like_secrets(session, user, tmp_path):
+    f = tmp_path / "m.json"
+    secret = "my key is gsk_" + "a" * 30
+    f.write_text(
+        json.dumps([{"memory": "likes tea", "date": "2026-01-01T10:00:00"}, {"memory": secret}])
+    )
+    result = import_json_memories(session, user.id, f)
+    assert (result.imported, result.skipped, result.refused_secrets) == (1, 1, 1)
+    assert [m.content for m in session.query(Memory).filter_by(user_id=user.id)] == ["likes tea"]
+
+
 def test_import_does_not_touch_file(session, user, tmp_path):
     f = tmp_path / "m.json"
     write(f, [{"date": "2026-03-01T10:00:00", "memory": "a"}])

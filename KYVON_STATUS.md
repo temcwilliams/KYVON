@@ -10,10 +10,33 @@ deployed. Where something was not (or could not be) verified, it says so.
 |---|---|
 | Backend | Flask app factory, ~12,000 lines in `kyvon/`, SQLite via SQLAlchemy 2 + Alembic (9 migrations) |
 | Web app | Plain ES modules + service worker, ~3,900 lines |
-| Tests | ~1,000 (pytest); ~96% line coverage of `kyvon/`; no test touches the network |
+| Tests | 1,014 (pytest, from ~700 test functions plus parametrised cases); ~97% line coverage of `kyvon/`; no test touches the network |
 | Static checks | Ruff (lint + format), bandit, pip-audit: clean |
-| Verified live | Real gunicorn process + real HTTP smoke test (24/24); UI exercised in the in-app browser (sign-in, streaming chat, tool use, approval card, memory, admin, phone layout) |
+| Verified live | Real gunicorn process (also from a clean install of `requirements.txt` alone) + real HTTP smoke test (24/24); UI exercised in the in-app browser (sign-in, streaming chat, tool use, approval card, memory, admin, phone layout) |
 | **Not verified** | Any real Groq / Google / Hermes / push-service call; service-worker registration; microphone capture; the whole native iOS app; Docker build; CI on GitHub; the VM |
+
+## Verification matrix
+
+What "tested" means here, feature by feature. **No real Groq, Google, Hermes, push-service or Whisper request has
+ever been made** (no credentials were used), so nothing in the middle column has been seen working against the real
+service.
+
+| Feature | Real code path exercised locally | Against the real external service |
+|---|---|---|
+| Conversations, messages, streaming (SSE), memory, tasks, recurrence, tools, approvals, agents, automation, settings, admin, backup/restore/doctor, migrations, auth/CSRF/rate limits | Yes: unit + API tests, a real gunicorn process, real HTTP smoke test | n/a (local) |
+| PWA shell, manifest, login screen, all 23 JS modules load | Yes: served by the app and loaded in the in-app browser | n/a |
+| Groq chat, streaming and tool calls | Client checked against the installed `groq` SDK's real signatures and chunk types; behaviour tested with a fake client | **Not verified** |
+| Whisper transcription | Same as above (`audio.transcriptions.create` arguments checked against the SDK); upload validation tested for real | **Not verified** |
+| Google OAuth + Calendar | URLs, scopes, PKCE (S256), token refresh and REST paths tested with a fake HTTP layer | **Not verified** |
+| Hermes | Tested with a fake OpenAI-compatible endpoint; isolation (same allow-list, approvals, audit) tested for real | **Not verified** |
+| Logseq | Tested for real on temporary folders (path sandbox, symlinks, backups) | Not applicable, but never pointed at your real graph |
+| Web Push | Encryption follows RFC 8291 step by step and round-trips; VAPID JWT signing tested; endpoint allow-list tested | **Not verified** (no browser has received a push) |
+| Service worker | Script parses and runs in a Worker | **Registration never exercised** |
+| Microphone capture | No | **Not verified** |
+| Native iOS app | Desk-checked only | **Never compiled** |
+| Docker image | No Docker on the audit machine; the same steps (clean install of `requirements.txt`, migrations, `doctor --quiet`, gunicorn) were run without Docker | **Image never built** |
+| GitHub Actions CI | Same commands run locally, except the JavaScript syntax check (no Node): modules were loaded in a browser instead | **Never run on GitHub** |
+| The Ubuntu VM | No | **Untouched** |
 
 ## Architecture
 
@@ -95,7 +118,7 @@ access, SSRF-safe outbound calls, encrypted OAuth tokens, redacted logs. Full li
 
 ## Testing
 
-`pytest -n auto` (~1,000 tests, ~90 s): unit, API, authentication, database/migrations, tool and agent tests
+`pytest -n auto` (1,014 tests, one to two minutes): unit, API, authentication, database/migrations, tool and agent tests
 with a fake model, mocked Google/Hermes/push/speech services, frontend sanity checks (references, ids, unsafe
 patterns), a security regression suite (walks every route), operations tests (backup/restore/doctor), and one that
 boots a real gunicorn process. `scripts/smoke_test.py` checks a live server. External services are never called.

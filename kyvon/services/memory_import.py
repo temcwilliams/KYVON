@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from kyvon.db import utcnow
 from kyvon.models import Memory
+from kyvon.services.memory_rules import looks_like_secret
 from kyvon.services.memory_service import MemoryService
 
 
@@ -23,6 +24,15 @@ class MemoryImportError(Exception):
 class ImportResult:
     imported: int = 0
     skipped: int = 0
+    refused_secrets: int = 0  # also counted in ``skipped``
+
+
+def _has_date(value) -> bool:
+    try:
+        datetime.fromisoformat(value)
+    except (TypeError, ValueError):
+        return False
+    return True
 
 
 def _parse_date(value) -> datetime:
@@ -37,8 +47,9 @@ def _parse_date(value) -> datetime:
 def import_json_memories(session: Session, user_id: int, path: Path) -> ImportResult:
     """Import ``path`` for ``user_id``. The file is only read, never modified.
 
-    Re-running is safe: an entry with the same text and timestamp is skipped,
-    including entries that were later soft-deleted.
+    Re-running is safe: an entry with the same text and timestamp is skipped (an entry with
+    no usable timestamp is matched on its text alone), including entries that were later
+    soft-deleted. Entries that look like secrets are never imported.
     """
     path = Path(path)
     try:
@@ -54,6 +65,7 @@ def import_json_memories(session: Session, user_id: int, path: Path) -> ImportRe
         (m.content, m.created_at)
         for m in session.scalars(select(Memory).where(Memory.user_id == user_id))
     }
+    existing_texts = {content for content, _ in existing}
 
     service = MemoryService(session, user_id)
     result = ImportResult()
@@ -62,12 +74,18 @@ def import_json_memories(session: Session, user_id: int, path: Path) -> ImportRe
         if not isinstance(text, str) or not text.strip():
             result.skipped += 1
             continue
+        if looks_like_secret(text):
+            result.skipped += 1
+            result.refused_secrets += 1
+            continue
         created_at = _parse_date(item.get("date"))
-        if (text, created_at) in existing:
+        dated = _has_date(item.get("date"))
+        if ((text, created_at) in existing) if dated else (text in existing_texts):
             result.skipped += 1
             continue
         session.add(Memory(user_id=user_id, content=text, source="import", created_at=created_at))
         existing.add((text, created_at))
+        existing_texts.add(text)
         result.imported += 1
 
     session.flush()

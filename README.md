@@ -64,7 +64,7 @@ KYVON_SMOKE_PASSWORD='...' .venv/bin/python scripts/smoke_test.py http://127.0.0
 ## Development
 
 ```bash
-.venv/bin/pytest -n auto              # about 1,000 tests; no network (models and services are faked)
+.venv/bin/pytest -n auto              # 1,014 tests; no network (models and services are faked)
 .venv/bin/ruff check . && .venv/bin/ruff format --check .
 .venv/bin/bandit -c pyproject.toml -r kyvon && .venv/bin/pip-audit -r requirements.txt
 ```

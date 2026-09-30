@@ -100,6 +100,8 @@ def import_memories(file_: Path | None):
         except MemoryImportError as error:
             raise click.ClickException(str(error)) from error
     click.echo(f"Imported {result.imported} memories ({result.skipped} skipped) from {path}.")
+    if result.refused_secrets:
+        click.echo(f"{result.refused_secrets} entries looked like secrets and were not imported.")
     click.echo("The JSON file was left untouched as a backup.")
 
 
