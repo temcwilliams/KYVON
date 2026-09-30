@@ -34,6 +34,9 @@ class Settings:
     log_level: str = "INFO"
     data_dir: Path = Path("data")
     allowed_origins: tuple[str, ...] = ()
+    database_url: str = ""
+    token_ttl_days: int = 30
+    cookie_secure: bool = False
 
     # Derived paths (same file names the prototype uses).
     @property
@@ -43,6 +46,11 @@ class Settings:
     @property
     def error_log(self) -> Path:
         return self.data_dir / "kyvon_errors.log"
+
+    @property
+    def db_url(self) -> str:
+        """SQLAlchemy URL; defaults to SQLite at <data_dir>/kyvon.db."""
+        return self.database_url or f"sqlite:///{self.data_dir / 'kyvon.db'}"
 
     def __repr__(self) -> str:
         # Never print secrets, even by accident.
@@ -90,6 +98,18 @@ class Settings:
         if not 1 <= port <= 65535:
             raise ConfigError("PORT must be between 1 and 65535.")
 
+        try:
+            token_ttl_days = int(get("KYVON_TOKEN_TTL_DAYS", "30"))
+        except ValueError as error:
+            raise ConfigError("KYVON_TOKEN_TTL_DAYS must be an integer.") from error
+        if token_ttl_days < 1:
+            raise ConfigError("KYVON_TOKEN_TTL_DAYS must be at least 1.")
+
+        # Cookies default to Secure in production (HTTPS is terminated by the
+        # Cloudflare Tunnel, so this is a setting rather than request.is_secure).
+        secure_default = "true" if env == "production" else "false"
+        cookie_secure = get("KYVON_COOKIE_SECURE", secure_default).lower() in ("1", "true", "yes")
+
         origins = tuple(o.strip() for o in get("ALLOWED_ORIGINS").split(",") if o.strip())
 
         return cls(
@@ -103,4 +123,7 @@ class Settings:
             log_level=get("LOG_LEVEL", "INFO").upper(),
             data_dir=Path(get("KYVON_DATA_DIR", "data")),
             allowed_origins=origins,
+            database_url=get("DATABASE_URL"),
+            token_ttl_days=token_ttl_days,
+            cookie_secure=cookie_secure,
         )
