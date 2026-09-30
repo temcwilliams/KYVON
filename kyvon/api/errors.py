@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from flask import Flask, jsonify
+import traceback
+
+from flask import Flask, current_app, jsonify
 from pydantic import ValidationError
 from werkzeug.exceptions import HTTPException
 
@@ -36,3 +38,12 @@ def register_error_handlers(app: Flask) -> None:
         return error_response(
             error.code or 500, (error.name or "error").lower().replace(" ", "_"), error.description
         )
+
+    @app.errorhandler(Exception)
+    def _unexpected_error(error: Exception):
+        # Anything unhandled (for example a database that was not migrated).
+        # Log the details; do not leak them to the client.
+        current_app.extensions["kyvon"].error_log.log(
+            "Unhandled Error", str(error), traceback.format_exc()
+        )
+        return error_response(500, "internal_error", "Internal server error.")

@@ -225,3 +225,17 @@ def test_create_app_creates_data_dir(settings, fake_llm):
     shutil.rmtree(settings.data_dir, ignore_errors=True)
     make_app(settings, llm=fake_llm)
     assert settings.data_dir.is_dir()
+
+
+def test_unexpected_errors_are_json_logged_and_not_leaked(app, client, settings, monkeypatch):
+    def explode(*_args, **_kwargs):
+        raise RuntimeError("secret internal detail")
+
+    monkeypatch.setattr("kyvon.api.v1.routes.MemoryService.all", explode)
+    response = client.get("/api/v1/memories")
+    assert response.status_code == 500
+    assert response.get_json() == {
+        "error": {"code": "internal_error", "message": "Internal server error."}
+    }
+    assert "secret internal detail" not in response.get_data(as_text=True)
+    assert "secret internal detail" in settings.error_log.read_text()
