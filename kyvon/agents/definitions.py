@@ -56,7 +56,13 @@ RESEARCHER = AgentDefinition(
         "Break the question into searches, run them, cross-check the answers and separate "
         "well-supported facts from uncertain ones. Mention where each key fact came from."
     ),
-    tools=("web_search", "memory_search", "get_current_time"),
+    tools=(
+        "web_search",
+        "memory_search",
+        "logseq_search",
+        "logseq_read_page",
+        "get_current_time",
+    ),
     max_steps=7,
     max_tool_calls=8,
     timeout_seconds=150,

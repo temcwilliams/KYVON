@@ -60,6 +60,7 @@ _STRINGS: dict[str, tuple[str, str]] = {
     "hermes_url": ("KYVON_HERMES_URL", ""),
     "hermes_api_key": ("KYVON_HERMES_API_KEY", ""),
     "hermes_model": ("KYVON_HERMES_MODEL", "hermes"),
+    "logseq_dir": ("KYVON_LOGSEQ_DIR", ""),
 }
 
 _TRUE = ("1", "true", "yes", "on")
@@ -111,6 +112,9 @@ class Settings:
     hermes_model: str = "hermes"
     hermes_allow_remote: bool = False
     hermes_timeout_seconds: int = 90
+
+    # Logseq (Phase 8, optional): path of a Logseq graph folder
+    logseq_dir: str = ""
 
     # Agents (Phase 6)
     agent_max_depth: int = (

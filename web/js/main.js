@@ -4,6 +4,7 @@ import { currentUser, hideLogin, initLogin, logout, showLogin } from "./auth.js"
 import { newConversation, openConversation, sendMessage } from "./chat.js";
 import "./conversations.js";
 import "./tasks.js";
+import "./notes.js";
 import { handleOAuthReturn } from "./calendar.js";
 import { api } from "./api.js";
 import { runDiagnostics } from "./diagnostics.js";

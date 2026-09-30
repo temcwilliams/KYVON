@@ -18,6 +18,7 @@ from kyvon.api.errors import register_error_handlers
 from kyvon.config import Settings
 from kyvon.db import make_engine, make_session_factory
 from kyvon.integrations.hermes import build_hermes
+from kyvon.integrations.logseq import build_graph
 from kyvon.llm.base import LLMClient
 from kyvon.llm.groq_client import GroqClient
 from kyvon.services.environment_context import EnvironmentCache
@@ -51,6 +52,7 @@ class Services:
     http: Any = None  # requests.Session-like; replaced by a fake in tests
     agent_runner: Any = None
     hermes: Any = None  # HermesBackend | None (optional)
+    logseq: Any = None  # KnowledgeBase | None (optional)
     agent_service: Any = None
 
 
@@ -81,6 +83,7 @@ def create_app(
         http=requests.Session(),
     )
     container.hermes = build_hermes(settings, container.http)
+    container.logseq = build_graph(settings.logseq_dir)
     container.executor = ToolExecutor(container.registry, container)
     container.agent_runner = AgentRunner(container)
     container.agent_service = AgentService(container)
@@ -115,6 +118,7 @@ def create_app(
     from kyvon.api.v1.chat import bp as chat_bp
     from kyvon.api.v1.conversations import bp as conversations_bp
     from kyvon.api.v1.integrations import bp as integrations_bp
+    from kyvon.api.v1.logseq import bp as logseq_bp
     from kyvon.api.v1.memories import bp as memories_bp
     from kyvon.api.v1.routes import bp as v1_bp
     from kyvon.api.v1.tasks import bp as tasks_bp
@@ -131,5 +135,6 @@ def create_app(
     app.register_blueprint(calendar_bp)
     app.register_blueprint(agents_bp)
     app.register_blueprint(integrations_bp)
+    app.register_blueprint(logseq_bp)
     app.cli.add_command(cli)
     return app

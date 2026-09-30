@@ -718,3 +718,10 @@ textarea {
     font-weight: normal;
     margin: 14px 0 8px;
 }
+
+.page-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 12px;
+    line-height: 1.5;
+}
