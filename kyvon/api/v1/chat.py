@@ -9,6 +9,7 @@ from flask import Blueprint, Response, g, jsonify, stream_with_context
 
 from kyvon.api.deps import (
     build_chat_service,
+    enforce_rate,
     get_session,
     login_required,
     parse_json,
@@ -30,6 +31,7 @@ def _sse(event: dict) -> str:
 @bp.post("/chat")
 @login_required
 def chat():
+    enforce_rate("chat", services().settings.rate_limit_chat_per_minute)
     body = parse_json(ChatRequest)
     service = build_chat_service()
     try:
@@ -51,6 +53,7 @@ def chat():
 @bp.post("/chat/stream")
 @login_required
 def chat_stream():
+    enforce_rate("chat", services().settings.rate_limit_chat_per_minute)
     body = parse_json(ChatRequest)
     svc = services()
     user_id = g.user.id

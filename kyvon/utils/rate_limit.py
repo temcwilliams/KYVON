@@ -42,3 +42,31 @@ class FailureThrottle:
     def reset(self, key: str) -> None:
         with self._lock:
             self._failures.pop(key, None)
+
+
+class RateLimiter:
+    """Per-key sliding-window limiter (in memory, per process).
+
+    KYVON runs one worker, so this is accurate for it; with several workers each would
+    enforce the limit separately (a documented limitation).
+    """
+
+    def __init__(self, *, clock: Callable[[], float] = time.monotonic):
+        self._clock = clock
+        self._hits: dict[str, list[float]] = {}
+        self._lock = threading.Lock()
+
+    def hit(self, key: str, limit: int, window: float = 60.0) -> tuple[bool, int]:
+        """Record an attempt. Returns (allowed, seconds_until_allowed_again)."""
+        now = self._clock()
+        with self._lock:
+            recent = [t for t in self._hits.get(key, []) if t > now - window]
+            if len(recent) >= limit:
+                self._hits[key] = recent
+                return False, max(1, int(recent[0] + window - now) + 1)
+            recent.append(now)
+            self._hits[key] = recent
+            if len(self._hits) > 10_000:  # bound memory: drop idle keys
+                for stale in [k for k, v in self._hits.items() if not v or v[-1] <= now - window]:
+                    del self._hits[stale]
+            return True, 0

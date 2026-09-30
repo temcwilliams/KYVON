@@ -42,7 +42,12 @@ class OpenAICompatClient:
     def _post(self, payload: dict) -> dict:
         try:
             response = self._http.request(
-                "POST", self._endpoint, headers=self._headers, json=payload, timeout=self._timeout
+                "POST",
+                self._endpoint,
+                headers=self._headers,
+                json=payload,
+                timeout=self._timeout,
+                allow_redirects=False,
             )
         except Exception as error:  # connection refused, timeout, DNS...
             raise LLMError(f"Could not reach the endpoint ({type(error).__name__}).") from error
@@ -57,7 +62,11 @@ class OpenAICompatClient:
         """Cheap reachability check (lists models). Returns {"reachable": bool, ...}."""
         try:
             response = self._http.request(
-                "GET", self._models_endpoint, headers=self._headers, timeout=5
+                "GET",
+                self._models_endpoint,
+                headers=self._headers,
+                timeout=5,
+                allow_redirects=False,
             )
         except Exception as error:
             return {"reachable": False, "error": type(error).__name__}

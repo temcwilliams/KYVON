@@ -54,6 +54,33 @@ def _bearer_token() -> str | None:
     return None
 
 
+def enforce_rate(bucket: str, per_minute: int) -> None:
+    """Sliding-window limit per signed-in user; raises 429 with Retry-After."""
+    allowed, wait = services().rate_limiter.hit(f"{bucket}:{g.user.id}", per_minute)
+    if not allowed:
+        raise ApiError(
+            429, "rate_limited", "Too many requests. Please slow down.", {"Retry-After": str(wait)}
+        )
+
+
+def _check_origin() -> None:
+    """Defence in depth for cookie sessions: a browser-sent Origin must be this site.
+
+    (SameSite=Strict and the CSRF token already stop cross-site requests; this closes the
+    gap if either were ever misconfigured.)
+    """
+    origin = request.headers.get("Origin")
+    if not origin:
+        return
+    from urllib.parse import urlparse
+
+    settings = services().settings
+    allowed = {request.host.lower(), (urlparse(settings.public_url).netloc or "").lower()}
+    allowed.update(o.lower() for o in settings.trusted_origins)
+    if urlparse(origin).netloc.lower() not in allowed:
+        raise ApiError(403, "bad_origin", "This request came from an untrusted origin.")
+
+
 def login_required(view):
     """Require a valid device token (Authorization: Bearer, or the web cookie).
 
@@ -74,6 +101,7 @@ def login_required(view):
             raise ApiError(401, "unauthorized", "Authentication required.")
 
         if via == "cookie" and request.method not in SAFE_METHODS:
+            _check_origin()
             expected = request.cookies.get(CSRF_COOKIE, "")
             supplied = request.headers.get(CSRF_HEADER, "")
             if not expected or not hmac.compare_digest(expected, supplied):
@@ -82,6 +110,7 @@ def login_required(view):
         g.token = token
         g.user = token.user
         user_id_var.set(token.user.id)
+        enforce_rate("api", services().settings.rate_limit_api_per_minute)
         g.auth_via = via
         return view(*args, **kwargs)
 

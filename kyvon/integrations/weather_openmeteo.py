@@ -62,6 +62,7 @@ def fetch_current_weather(
             "timezone": "auto",
         },
         timeout=TIMEOUT_SECONDS,
+        allow_redirects=False,
     )
     response.raise_for_status()
 

@@ -15,24 +15,30 @@ from kyvon.services.errors import (
     NotFoundError,
     ValidationFailure,
 )
+from kyvon.utils.redact import redact
 
 
 class ApiError(Exception):
-    def __init__(self, status: int, code: str, message: str):
+    def __init__(self, status: int, code: str, message: str, headers: dict | None = None):
         super().__init__(message)
         self.status = status
         self.code = code
         self.message = message
+        self.headers = headers or {}
 
 
-def error_response(status: int, code: str, message: str):
-    return jsonify({"error": {"code": code, "message": message}}), status
+def error_response(status: int, code: str, message: str, headers: dict | None = None):
+    # Messages sometimes come from exceptions (provider errors); never let a secret through.
+    body = jsonify({"error": {"code": code, "message": redact(message)}})
+    if headers:
+        body.headers.update(headers)
+    return body, status
 
 
 def register_error_handlers(app: Flask) -> None:
     @app.errorhandler(ApiError)
     def _api_error(error: ApiError):
-        return error_response(error.status, error.code, error.message)
+        return error_response(error.status, error.code, error.message, error.headers)
 
     @app.errorhandler(NotFoundError)
     def _not_found(error: NotFoundError):

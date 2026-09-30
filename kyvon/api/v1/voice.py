@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from flask import Blueprint, g, jsonify, request
 
-from kyvon.api.deps import login_required, services
+from kyvon.api.deps import enforce_rate, login_required, services
 from kyvon.api.errors import ApiError
 from kyvon.integrations.speech import MIME_TO_EXTENSION, SpeechError, sniff_audio
 from kyvon.services.settings_service import get_settings
@@ -36,6 +36,7 @@ def _session():
 @bp.post("/transcribe")
 @login_required
 def transcribe():
+    enforce_rate("voice", 20)
     svc = services()
     if svc.stt is None:
         raise ApiError(409, "not_configured", "Speech-to-text is not available on this server.")

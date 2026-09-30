@@ -50,6 +50,10 @@ async function load() {
 async function connect() {
     try {
         const data = await api("/calendar/connect", { method: "POST" });
+        // Only ever navigate to Google's sign-in page, whatever the server sent.
+        if (!data.authorization_url.startsWith("https://accounts.google.com/")) {
+            throw new Error("Unexpected sign-in address.");
+        }
         window.location.assign(data.authorization_url);
     } catch (error) {
         note(error.message, true);

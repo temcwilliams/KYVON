@@ -102,6 +102,7 @@ class GoogleOAuth:
             TOKEN_URL,
             data={**data, "client_id": self._id, "client_secret": self._secret},
             timeout=TIMEOUT,
+            allow_redirects=False,
         )
         if response.status_code >= 400:
             message = _error_message(response)
@@ -135,7 +136,9 @@ class GoogleOAuth:
 
     def revoke(self, token: str) -> None:
         try:
-            self._http.request("POST", REVOKE_URL, data={"token": token}, timeout=TIMEOUT)
+            self._http.request(
+                "POST", REVOKE_URL, data={"token": token}, timeout=TIMEOUT, allow_redirects=False
+            )
         except Exception:  # best effort: the local copy is deleted regardless
             pass
 
@@ -147,7 +150,12 @@ class GoogleCalendarAPI:
 
     def _call(self, method: str, path: str, **kwargs) -> Any:
         response = self._http.request(
-            method, API_BASE + path, headers=self._headers, timeout=TIMEOUT, **kwargs
+            method,
+            API_BASE + path,
+            headers=self._headers,
+            timeout=TIMEOUT,
+            allow_redirects=False,
+            **kwargs,
         )
         if response.status_code == 401:
             raise GoogleAuthError(401, "Google rejected the access token.")

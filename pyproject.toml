@@ -11,3 +11,11 @@ extend-exclude = [".venv"]
 select = ["E", "F", "W", "I", "B", "UP"]
 # The formatter wraps code; long strings/comments are left alone.
 ignore = ["E501"]
+
+[tool.bandit]
+# Reviewed false positives (see docs/SECURITY.md):
+#   B104  "0.0.0.0" is the documented default bind address (the VM sits behind a tunnel)
+#   B105  constant names/URLs that merely contain "token" or "password", not secrets
+#   B106  same, for keyword arguments
+#   B110  deliberate best-effort blocks (logging and push must never break a request)
+skips = ["B104", "B105", "B106", "B110"]

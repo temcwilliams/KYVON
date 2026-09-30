@@ -24,6 +24,7 @@ def reverse_geocode(
         params={"lat": latitude, "lon": longitude, "format": "json", "zoom": 10},
         headers={"User-Agent": USER_AGENT},
         timeout=TIMEOUT_SECONDS,
+        allow_redirects=False,
     )
     response.raise_for_status()
 
@@ -61,6 +62,7 @@ def forward_geocode(
         params={"q": query, "format": "json", "limit": 1},
         headers={"User-Agent": USER_AGENT},
         timeout=TIMEOUT_SECONDS,
+        allow_redirects=False,
     )
     response.raise_for_status()
     results = response.json()

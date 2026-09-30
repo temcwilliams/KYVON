@@ -8,6 +8,7 @@ import re
 import time
 import uuid
 from dataclasses import dataclass
+from http import cookiejar
 from pathlib import Path
 from typing import Any
 
@@ -39,14 +40,15 @@ from kyvon.tools import build_registry
 from kyvon.tools.executor import ToolExecutor
 from kyvon.tools.registry import ToolRegistry
 from kyvon.utils.error_log import ErrorLog
-from kyvon.utils.rate_limit import FailureThrottle
+from kyvon.utils.rate_limit import FailureThrottle, RateLimiter
 
 _REQUEST_ID = re.compile(r"^[A-Za-z0-9._-]{8,64}$")
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 # The web client uses only same-origin scripts, styles and requests.
 CONTENT_SECURITY_POLICY = (
-    "default-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'"
+    "default-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; "
+    "form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
 )
 
 
@@ -70,7 +72,34 @@ class Services:
     scheduler: Any = None
     push: Any = None  # web/native push sender (Phase 11), optional
     stt: Any = None  # SpeechToText | None
+    rate_limiter: Any = None
     agent_service: Any = None
+
+
+class _NoCookies(cookiejar.CookiePolicy):
+    """Outbound calls must not accumulate cookies (nothing to leak between users or calls)."""
+
+    netscape = True
+    rfc2965 = hide_cookie2 = False
+
+    def set_ok(self, cookie, request):
+        return False
+
+    def return_ok(self, cookie, request):
+        return False
+
+    def domain_return_ok(self, domain, request):
+        return False
+
+    def path_return_ok(self, path, request):
+        return False
+
+
+def _outbound_session() -> requests.Session:
+    session = requests.Session()
+    session.cookies.set_policy(_NoCookies())
+    session.trust_env = False  # ignore proxy/netrc settings from the environment
+    return session
 
 
 def create_app(
@@ -103,7 +132,8 @@ def create_app(
         login_throttle=FailureThrottle(),
         environment_cache=EnvironmentCache(),
         registry=build_registry(),
-        http=requests.Session(),
+        rate_limiter=RateLimiter(),
+        http=_outbound_session(),
     )
     container.hermes = build_hermes(settings, container.http)
     container.push = build_push(settings, container.http)
@@ -178,6 +208,13 @@ def create_app(
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "same-origin")
+        response.headers.setdefault(
+            "Permissions-Policy", "geolocation=(self), microphone=(self), camera=(), payment=()"
+        )
+        if settings.cookie_secure:  # only meaningful (and safe) when served over HTTPS
+            response.headers.setdefault(
+                "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+            )
         if request.path.startswith("/api/"):
             response.headers["Cache-Control"] = "no-store"
         else:

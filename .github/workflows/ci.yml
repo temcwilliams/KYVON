@@ -21,7 +21,11 @@ jobs:
       - name: Format check
         run: ruff format --check .
       - name: Tests
-        run: pytest
+        run: pytest -n auto
+      - name: Static security analysis
+        run: bandit -q -c pyproject.toml -r kyvon
+      - name: Dependency advisories
+        run: pip-audit -r requirements.txt
       - name: Migrations apply to a fresh database
         env:
           GROQ_API_KEY: ci-placeholder

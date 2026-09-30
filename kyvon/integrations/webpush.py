@@ -159,6 +159,7 @@ class WebPushSender:
                 "Urgency": "normal",
             },
             timeout=10,
+            allow_redirects=False,
         )
         if response.status_code >= 400:
             raise WebPushError(response.status_code)

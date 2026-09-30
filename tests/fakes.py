@@ -98,7 +98,9 @@ class FakeGoogle:
         self._next_id = 1
 
     # -- request router
-    def request(self, method, url, headers=None, params=None, data=None, json=None, timeout=None):
+    def request(
+        self, method, url, headers=None, params=None, data=None, json=None, timeout=None, **kwargs
+    ):
         self.calls.append(
             {
                 "method": method,

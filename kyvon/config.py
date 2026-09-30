@@ -69,6 +69,7 @@ _STRINGS: dict[str, tuple[str, str]] = {
     "vapid_public_key": ("KYVON_VAPID_PUBLIC_KEY", ""),
     "vapid_private_key": ("KYVON_VAPID_PRIVATE_KEY", ""),
     "vapid_subject": ("KYVON_VAPID_SUBJECT", ""),
+    "trusted_origins_raw": ("KYVON_TRUSTED_ORIGINS", ""),
 }
 
 _TRUE = ("1", "true", "yes", "on")
@@ -126,6 +127,7 @@ class Settings:
     vapid_public_key: str = ""
     vapid_private_key: str = ""
     vapid_subject: str = ""  # mailto: or https: contact, required by push services
+    trusted_origins_raw: str = ""  # extra hosts allowed as Origin for cookie sessions
 
     # Logseq (Phase 8, optional): path of a Logseq graph folder
     logseq_dir: str = ""
@@ -166,6 +168,10 @@ class Settings:
     def db_url(self) -> str:
         """SQLAlchemy URL; defaults to SQLite at <data_dir>/kyvon.db."""
         return self.database_url or f"sqlite:///{self.data_dir / 'kyvon.db'}"
+
+    @property
+    def trusted_origins(self) -> tuple[str, ...]:
+        return tuple(o.strip() for o in self.trusted_origins_raw.split(",") if o.strip())
 
     @property
     def push_configured(self) -> bool:

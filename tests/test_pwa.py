@@ -249,7 +249,7 @@ class FakePushHTTP:
         self.status = status
         self.requests = []
 
-    def request(self, method, url, data=None, headers=None, timeout=None):
+    def request(self, method, url, data=None, headers=None, timeout=None, **kwargs):
         self.requests.append({"method": method, "url": url, "data": data, "headers": headers})
         return FakeHTTPResponse(self.status, {})
 
