@@ -1,6 +1,6 @@
 # KYVON — Target Architecture
 
-Status: **approved; Phase 1 implemented.** Sections 1-15 are the approved design. The [As built](#as-built-end-of-phase-1) section at the end records what was actually implemented and where it differs. Current state: [KYVON_STATUS.md](../KYVON_STATUS.md).
+Status: **approved and implemented (Phases 1-16).** Sections 1-15 are the approved design; the [As built](#as-built) section at the end records what exists and where it differs. Current state and known limits: [KYVON_STATUS.md](../KYVON_STATUS.md). Security model: [SECURITY.md](SECURITY.md). Deployment: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Guiding principles
 
@@ -268,51 +268,85 @@ See [ROADMAP.md](ROADMAP.md) for phase-by-phase scope, deliverables and exit cri
 | 6 | Validation | pydantic schemas (also the source for OpenAPI) |
 | 7 | Hosting | Container with gunicorn on Fly.io/Render or a Tailscale-reachable box |
 
-## As built (end of Phase 1)
+## As built
 
-Implemented as designed unless noted.
-
-**Structure**
+### Layout
 
 ```
-app.py  wsgi.py  gunicorn.conf.py  Dockerfile  docker-entrypoint.sh  alembic.ini
+app.py wsgi.py gunicorn.conf.py Dockerfile docker-entrypoint.sh alembic.ini
 kyvon/
-  __init__.py            create_app() factory, Services container, security headers
-  config.py              typed Settings (env + optional .env)
-  db.py                  Base, UTC datetime type, engine/session, upgrade_database()
-  cli.py                 flask --app wsgi kyvon <db-upgrade|create-user|set-password|revoke-tokens|import-memories>
-  api/                   deps.py (session, auth guard, JSON parsing), errors.py, schemas.py,
-                         v1/routes.py, v1/auth.py
-  services/              chat, memory, memory_import, auth, environment, status
-  llm/                   base (LLMClient protocol), groq_client, prompts
-  integrations/          geocode_nominatim, weather_openmeteo
-  models/                user (User, ApiToken), memory, conversation (Conversation, Message)
-  utils/                 error_log, rate_limit
-migrations/versions/0001_initial_schema.py
-web/                     index.html, css/, js/ (api, auth, chat, env, memory, diagnostics, voice, ui, main)
-tests/
+  __init__.py            create_app(): factory, Services container, request ids, security headers, PWA routes
+  config.py              typed Settings (env + optional .env), table-driven tuning values
+  db.py                  Base, UTC datetime type, engines, migration helpers
+  cli.py                 kyvon db-upgrade | create-user | set-password | revoke-tokens | import-memories |
+                         generate-key | generate-vapid-keys | backup | restore | doctor
+  logging_setup.py       JSON/text logs with request ids and redaction
+  pwa.py                 service-worker rendering (cache version from the shipped files)
+  api/                   deps (session, auth guard, rate limit, origin check), errors, schemas, v1/*
+  services/              chat, context builder, summariser, conversations, memory (+rules, retrieval,
+                         import), tasks, calendar, automation, notifications, push, settings,
+                         auth, environment, observability, doctor
+  llm/                   LLMClient protocol, Groq client, OpenAI-compatible client (Hermes), prompts
+  tools/                 base (Tool, RiskLevel), registry, executor, builtin/* (memory, web, weather,
+                         conversation, tasks, calendar, logseq, automation, agents, settings, system)
+  agents/                definitions, runner, background service
+  automation/            schedules, runner, scheduler thread
+  integrations/          nominatim, open-meteo, google_calendar, logseq, hermes, speech, webpush
+  models/                users, tokens, conversations/messages, memories, tool_runs, tasks, calendar,
+                         agent_runs, automations/notifications, push subscriptions, error_records
+  utils/                 crypto (Fernet), redact, rate limits, error log
+migrations/versions/     0001 ... 0009
+web/                     index.html, manifest, sw.js, css, js modules (api, auth, chat, panels, ...), icons
+ios/                     Swift package + app target sources (not compiled - see ios/README.md)
+scripts/                 icon generator, config-docs generator, HTTP smoke test
+deploy/                  systemd units, backup timer, cloudflared example
+tests/                   ~1,000 tests
 ```
 
-**Endpoints implemented:** `GET /health`, `GET /status[?deep=1]`, `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`, `GET /auth/tokens`, `DELETE /auth/tokens/<id>`, `POST /chat`, `GET /memories`, `POST /environment`. The remaining endpoints in section 3 belong to later phases.
+### How a chat turn works
 
-**Differences from the design**
+1. `POST /chat/stream` (or `/chat`) -> rate limit -> `ChatService.turn` (one generator shared by both).
+2. The user message is saved. Shortcuts (`remember ...`, `what do you remember ...`, `web ...`) are handled without
+   the model (the `web` one still runs the audited tool).
+3. `ContextBuilder` assembles: persona and rules + the user's few non-default preferences + *retrieved* memories +
+   a digest of recent tool results + the rolling summary (only if history was cut) + temporary context
+   (time, location, weather) + a token- and count-bounded slice of recent messages.
+4. The model is streamed. If it asks for tools, `ToolExecutor` validates, runs (in a worker thread with its own
+   session and a timeout) or queues for approval, and the results go back to the model, for a bounded number
+   of rounds (the last round withholds tools). Each step is saved: the assistant row always ends with an honest
+   status (complete / partial on disconnect / error).
+5. After the reply: title and summary housekeeping (best effort).
+
+### Data model (SQLite, Alembic 0001-0009)
+
+`users`, `api_tokens`, `conversations` (title, summary), `messages` (kind: message | tool_call | tool_result |
+event; status; model; tokens), `memories` (category, importance, source, hash, soft delete), `tool_runs` (the audit
+trail and the approval queue), `tasks`, `calendar_accounts` (encrypted tokens), `oauth_states`, `agent_runs`,
+`automations`, `automation_runs`, `notifications`, `push_subscriptions`, `error_records`. Every user-owned table
+has `user_id`; timestamps are UTC.
+
+### Tool system
+
+`Tool` = name, description, strict Pydantic input model, risk (`read`, `write`, `external`, `destructive`), timeout,
+retries (read-only only), untrusted-output flag, and a code-written confirmation summary. `external` and
+`destructive` tools, plus model-initiated memory writes, settings changes and standing automations, are
+queued as `pending_confirmation` and run only when the user approves. Details: [SECURITY.md](SECURITY.md).
+
+### Agents
+
+Profiles (prompt + tool allow-list + step/tool/time limits) run by one bounded loop: researcher, planner (read-only),
+productivity, memory_curator, diagnostics (read-only), and hermes (optional backend). The main assistant decides
+whether to delegate (`delegate_to_agent`); agents cannot start agents. Runs are stored with trace and usage.
+
+### Differences from the original design
 
 | Design | As built |
 |---|---|
-| One route file per area | `routes.py` (chat, memories, environment, status) and `auth.py`; split when they grow |
-| `memories.importance` column | Omitted until Phase 3 needs it |
-| `messages` tool fields | Omitted until Phase 4; `conversations` / `messages` exist as schema only, unused until Phase 2 |
-| `extensions.py` | Not needed; engine and sessions are created in the factory |
-| `tool_runs`, `calendar_*`, `agent_runs` tables | Later phases |
-| `KYVON_ENCRYPTION_KEY`, `SECRET_KEY` | Not needed yet (tokens are hashed, not encrypted); will return with Google Calendar |
-| Legacy `/api/*` aliases | Not created. The web client moved to `/api/v1` in the same release |
-| `web/` served by Flask | As designed (Flask serves `web/` at `/` and `/static`) |
-| `flask kyvon create-user` | As designed, plus `set-password`, `revoke-tokens`, `import-memories`, `db-upgrade` |
-| Status check | `GET /status` is cheap; `?deep=1` makes the one model call the prototype made on every check |
-| Error envelope | As designed. Prototype's `"diagnosed": true` field was dropped |
-
-**Behavior changes from the prototype (deliberate):** invalid input returns 400 (was 500); messages are limited to 10,000 characters; the SYSTEM button runs the deep status check while the automatic startup check does not call the model; the CSS/HTML no longer says J.A.R.V.I.S.; everything requires sign-in. The `remember that X` quirk (stored as `that X`) is **preserved** and listed as a known issue.
-
-**Auth as built:** scrypt password hashes, `kyv_`-prefixed 256-bit device tokens stored as SHA-256, 30-day expiry (configurable), bearer header or HttpOnly `SameSite=Strict` cookie with CSRF double-submit for cookie requests, and a failed-login throttle (5 failures per 15 minutes per address+username, in memory).
-
-**Testing as built:** pytest with a `FakeLLM` and injected HTTP fakes, so no test touches the network; migration/model drift check; CI runs lint, format check, tests, a fresh-database migration, a JavaScript syntax check, a Docker build, and a secret scan.
+| One route file per area | Blueprints grouped by area (`v1/routes.py` holds health, status, environment) |
+| `KYVON_ENCRYPTION_KEY` / `SECRET_KEY` | Only the encryption key (OAuth tokens); tokens are hashed, not encrypted |
+| Legacy `/api/*` aliases | Not created; the web client moved to `/api/v1` with Phase 1 |
+| Embeddings for memory | Not built: lexical retrieval behind a `MemoryRetriever` interface (Groq has no embeddings) |
+| Coding agent | Not built: KYVON cannot execute code, so it would add nothing |
+| Background worker (Celery/RQ) | Threads: a scheduler thread and small pools (one gunicorn worker by design) |
+| Native app | Source written, never compiled; APNs sending not implemented |
+| Two status endpoints | `/status` (light, used by the SYSTEM button) and `/admin/status` (owner diagnostics) |

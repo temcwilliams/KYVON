@@ -2,13 +2,13 @@
 
 Companion to [ARCHITECTURE.md](ARCHITECTURE.md). Each phase ends with a working app. Phases are sequential unless noted. A phase starts only after you approve it.
 
-**Progress:** Phase 1 is implemented and awaiting your review. Phases 2-8 have not started.
+**Progress:** all phases below have been implemented and tested locally, and the work is committed on the branch `kyvon/full-roadmap`. Nothing has been deployed to the VM or pushed to GitHub. The exact status, and what could not be verified, is in [KYVON_STATUS.md](../KYVON_STATUS.md).
 
 **Out of scope until you say otherwise:** changing the model provider, integrating Hermes, and building the native iOS app.
 
 ---
 
-## Phase 1 — Foundation  ✅ implemented (awaiting approval and VM deployment)
+## Phase 1 — Foundation  ✅
 
 **Goal:** a clean, safe base with no new user-visible features.
 
@@ -25,7 +25,7 @@ Companion to [ARCHITECTURE.md](ARCHITECTURE.md). Each phase ends with a working 
 **As built:** all items are done. Two intentional adjustments: the conversation tables exist as schema only (persistence is Phase 2), and no legacy `/api/*` aliases were kept because the web client moved to `/api/v1` in the same release. See the "As built" section of ARCHITECTURE.md.
 **Exit criteria:** the old chat, memory, web search and location/weather flows work on the new structure, tests pass in CI, no secrets are in the repo, and nothing is reachable without login.
 
-## Phase 2 — Conversational Intelligence
+## Phase 2 — Conversational Intelligence  ✅
 
 **Goal:** KYVON holds a real conversation.
 
@@ -37,7 +37,7 @@ Companion to [ARCHITECTURE.md](ARCHITECTURE.md). Each phase ends with a working 
 
 **Exit criteria:** follow-up questions work, history survives restarts and devices, and long chats stay within token limits.
 
-## Phase 3 — Memory
+## Phase 3 — Memory  ✅ (lexical retrieval; no embeddings)
 
 **Goal:** memory that is useful, visible and controllable.
 
@@ -49,7 +49,7 @@ Companion to [ARCHITECTURE.md](ARCHITECTURE.md). Each phase ends with a working 
 
 **Exit criteria:** KYVON recalls relevant facts without stuffing every memory into the prompt, and the user can inspect and remove anything it knows.
 
-## Phase 4 — Tools
+## Phase 4 — Tools  ✅
 
 **Goal:** the tool architecture, with the existing capabilities converted first.
 
@@ -61,7 +61,7 @@ Companion to [ARCHITECTURE.md](ARCHITECTURE.md). Each phase ends with a working 
 
 **Exit criteria:** KYVON never reports an action it didn't perform, since each claim maps to a logged tool result.
 
-## Phase 5 — Personal Assistant
+## Phase 5 — Personal Assistant  ✅ (tasks + Google Calendar; Google faked in tests)
 
 **Goal:** the README's promise of tasks and calendar.
 
@@ -72,7 +72,7 @@ Companion to [ARCHITECTURE.md](ARCHITECTURE.md). Each phase ends with a working 
 
 **Exit criteria:** "add a task to call the dentist Friday" and "what's on my calendar tomorrow?" both work end to end, with the calendar write requiring confirmation.
 
-## Phase 6 — Agents
+## Phase 6 — Agents  ✅ (also Hermes and Logseq, see below)
 
 **Goal:** bounded multi-step work.
 
@@ -83,7 +83,7 @@ Companion to [ARCHITECTURE.md](ARCHITECTURE.md). Each phase ends with a working 
 
 **Exit criteria:** a multi-step research or planning goal completes, is fully traceable step by step, and stays within its budget and permissions.
 
-## Phase 7 — iPhone/iPad
+## Phase 7 — iPhone/iPad  ✅ PWA; native client source written but NOT compiled
 
 **Goal:** a great mobile experience on the same API.
 
@@ -96,7 +96,7 @@ Companion to [ARCHITECTURE.md](ARCHITECTURE.md). Each phase ends with a working 
 
 **Exit criteria:** you use KYVON daily from your iPad and iPhone with working location, voice and notifications.
 
-## Phase 8 — Automation and advanced capabilities
+## Phase 8 — Automation and advanced capabilities  ✅ (reminders, scheduler, Logseq, Hermes, voice, admin)
 
 **Goal:** proactive and integrated behavior.
 
@@ -122,3 +122,39 @@ Companion to [ARCHITECTURE.md](ARCHITECTURE.md). Each phase ends with a working 
 | ~~PWA or native?~~ Decided: PWA now, native iOS app later | done |
 | Logseq: which graph/setup, and local file access or API? | Phase 8 |
 | Hermes: what is it in your setup (model, agent framework, or service)? | Phase 6/8 |
+
+
+---
+
+## Delivered scope, mapped to the later phase numbering
+
+The roadmap grew from 8 to 16 phases during implementation. Status of each:
+
+| # | Phase | Status |
+|---|---|---|
+| 1 | Foundation | Done |
+| 2 | Conversational intelligence (persistent conversations, context, streaming) | Done |
+| 3 | Real memory (rules, retrieval, controls) | Done; lexical retrieval only |
+| 4 | Tool system (registry, executor, approvals, audit) | Done |
+| 5 | Tasks and Google Calendar | Done; Google tested only against a fake |
+| 6 | Agents and sub-agents | Done |
+| 7 | Hermes (optional agent backend) | Done against an OpenAI-compatible fake; never run against a real Hermes |
+| 8 | Logseq | Done (sandboxed file graph) |
+| 9 | Automation | Done |
+| 10 | Personalization | Done |
+| 11 | PWA | Done; service-worker registration and push delivery not exercised in a real browser/service |
+| 12 | Native iOS/iPadOS | Source only; never compiled (no working Swift toolchain here); APNs sending missing |
+| 13 | Voice | Done; microphone capture not testable here |
+| 14 | Observability, admin, testing | Done |
+| 15 | Security hardening | Done ([SECURITY.md](SECURITY.md)) |
+| 16 | Production readiness | Done; not deployed |
+
+## Genuinely not implemented (future ideas)
+
+- Semantic (embedding) memory retrieval
+- Server-side APNs push delivery; building and shipping the native app
+- Server-side text-to-speech; on-device wake word
+- A coding agent with a real sandbox
+- Multi-user support, passkeys / two-factor sign-in
+- Postgres and multi-worker deployment (rate limits and the scheduler would need shared state)
+- Apple Calendar, e-mail and other integrations

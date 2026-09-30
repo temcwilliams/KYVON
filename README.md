@@ -1,24 +1,29 @@
 # KYVON
 
-A personal AI assistant: chat, memory, web research, and location/weather awareness, with a web
-client that works on iPhone and iPad. Flask backend, SQLite database, Groq for the model.
+A personal AI assistant you talk to from a browser, an installed web app (iPhone, iPad, desktop) or,
+eventually, a native app. Flask backend, SQLite database, Groq for the language model.
 
-- Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-- Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md)
-- Deploying: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
-- Current status and known issues: [KYVON_STATUS.md](KYVON_STATUS.md)
+- What exists, how it works, and every known limit: **[KYVON_STATUS.md](KYVON_STATUS.md)**
+- Security model and review: [docs/SECURITY.md](docs/SECURITY.md)
+- Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md)
+- Deploying to the Ubuntu VM: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) - Settings: [docs/CONFIGURATION.md](docs/CONFIGURATION.md)
 
-## What it does today (Phase 1)
+## What it does
 
-- Chat with a Groq model (`openai/gpt-oss-120b`), using the KYVON persona.
-- Memory: say `remember ...` (or `don't forget that ...`, `keep in mind that ...`). The newest
-  20 memories are included in every reply.
-- Web research: start a message with `web ` to use Groq's `groq/compound` search model.
-- Location and weather from the browser's GPS (OpenStreetMap Nominatim + Open-Meteo).
-- Voice input where the browser supports it.
-- Single-owner sign-in. Each device gets its own revocable token.
-
-Tasks, calendar, conversation history, tools and agents are planned for later phases.
+- **Chat** with persistent conversations, streaming replies, a stop button, and context that stays within
+  limits however long the chat gets.
+- **Memory** you control: it only saves what you ask (`remember ...`), refuses to store secrets, retrieves only
+  what is relevant, and lets you view, edit and delete everything.
+- **Tools** with approvals: KYVON can look things up, check weather and time, manage tasks and reminders,
+  read and change your Google Calendar, search and write your Logseq notes. Anything with an external effect,
+  and anything that deletes, waits for your explicit approval.
+- **Agents**: specialist helpers (research, planning, productivity, memory review, diagnostics, and an optional
+  Hermes helper) that the assistant can hand multi-step jobs to, within strict limits.
+- **Automation**: reminders and recurring scheduled tasks, with history, retries and an inbox.
+- **Personalisation**: name, response style, tone, units, time zone, and per-integration switches.
+- **PWA**: installable, offline shell, connection status, responsive layouts, optional push notifications.
+- **Voice**: dictate with server-side Whisper, hear replies read by your device.
+- **Admin** view: health, errors, usage and run traces (no secrets).
 
 ## Run it locally
 
@@ -28,85 +33,53 @@ Requires Python 3.12+.
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt
 
-cp .env.example .env          # then put your real GROQ_API_KEY in .env
+cp .env.example .env          # put your real GROQ_API_KEY in .env
 .venv/bin/flask --app wsgi kyvon db-upgrade
-.venv/bin/flask --app wsgi kyvon create-user      # prompts for a username and password
+.venv/bin/flask --app wsgi kyvon create-user      # username + password
 .venv/bin/python app.py                            # http://localhost:8080
 ```
 
-Browser geolocation and voice input need HTTPS (or `localhost`).
+Browser location, microphone, installation and notifications need HTTPS (or `localhost`).
 
-If you have a memory file from the prototype (`data/kyvon_memory.json`), import it once:
+Check a running server end to end:
 
 ```bash
-.venv/bin/flask --app wsgi kyvon import-memories
+KYVON_SMOKE_PASSWORD='...' .venv/bin/python scripts/smoke_test.py http://127.0.0.1:8080 yourusername
 ```
 
-The command is safe to repeat and never modifies the JSON file.
-
-## Administration commands
+## Administration
 
 `flask --app wsgi kyvon <command>`
 
 | Command | Purpose |
 |---|---|
+| `doctor` | Check configuration, permissions and migrations |
 | `db-upgrade` | Apply database migrations |
-| `create-user` | Create the owner account (only one is allowed; no public sign-up) |
-| `set-password` | Change the password and sign out every device |
-| `revoke-tokens` | Sign out every device |
-| `import-memories` | Import the prototype's JSON memories |
-
-## Configuration
-
-Environment variables (or a `.env` file; real environment variables win). See
-[.env.example](.env.example) for the full list.
-
-| Variable | Default | Notes |
-|---|---|---|
-| `GROQ_API_KEY` | (required) | Never commit it |
-| `KYVON_ENV` | `development` | `production` marks auth cookies Secure |
-| `PORT` | `8080` | |
-| `KYVON_DATA_DIR` | `data` | Database, error log, legacy memory file |
-| `DATABASE_URL` | `sqlite:///<data dir>/kyvon.db` | |
-| `KYVON_TOKEN_TTL_DAYS` | `30` | |
+| `create-user` | Create the owner account (one only; no public sign-up) |
+| `set-password` / `revoke-tokens` | Change the password / sign out every device |
+| `import-memories` | Import the old prototype's JSON memories (safe to repeat) |
+| `backup` / `restore` | Consistent database backups (see the deployment guide) |
+| `generate-key` / `generate-vapid-keys` | Create the encryption key / Web Push keys |
 
 ## Development
 
 ```bash
-.venv/bin/pytest          # tests (no network; the model is faked)
-.venv/bin/ruff check .    # lint
-.venv/bin/ruff format .   # format
+.venv/bin/pytest -n auto              # about 1,000 tests; no network (models and services are faked)
+.venv/bin/ruff check . && .venv/bin/ruff format --check .
+.venv/bin/bandit -c pyproject.toml -r kyvon && .venv/bin/pip-audit -r requirements.txt
 ```
 
-Layout:
-
 ```
-kyvon/            backend package
-  api/            HTTP layer: /api/v1 routes, validation, errors, auth guard
-  services/       business logic (chat, memory, auth, environment, status)
-  llm/            model provider seam (Groq) and prompts
-  integrations/   Nominatim and Open-Meteo clients
-  models/         SQLAlchemy models
-  cli.py          administration commands
-migrations/       Alembic migrations
-web/              the web client (plain ES modules, no build step)
-tests/            pytest suite
-docs/             architecture, roadmap, deployment
+kyvon/         backend package (api, services, tools, agents, automation, integrations, llm, models)
+web/           the web app / PWA (plain ES modules, no build step)
+ios/           native client sources (NOT compiled yet; see ios/README.md)
+migrations/    Alembic migrations          deploy/   systemd units and examples
+docs/          architecture, security, deployment, configuration
 ```
 
 ## API
 
-All endpoints are under `/api/v1`. Everything except `GET /health` and `POST /auth/login` needs
-a device token (`Authorization: Bearer ...`) or the web client's session cookie. Errors look like
-`{"error": {"code": "...", "message": "..."}}`.
-
-| Endpoint | Purpose |
-|---|---|
-| `GET /health` | Liveness (no auth) |
-| `POST /auth/login` | Sign in; returns a device token (or sets a cookie with `"cookie": true`) |
-| `POST /auth/logout`, `GET /auth/me` | Sign out; current user |
-| `GET /auth/tokens`, `DELETE /auth/tokens/<id>` | List and revoke devices |
-| `POST /chat` | `{"message": "...", "environment": "..."}` |
-| `GET /memories` | Saved memories |
-| `POST /environment` | `{"latitude": ..., "longitude": ...}` → location and weather |
-| `GET /status[?deep=1]` | Diagnostics (`deep` makes one model call) |
+All under `/api/v1`. Everything except `GET /health`, `GET /health/ready` and `POST /auth/login` needs a
+device token (`Authorization: Bearer ...`) or the web app's session cookie. Errors look like
+`{"error": {"code": "...", "message": "..."}}`. The routes are defined in `kyvon/api/v1/`; the tool
+catalogue is at `GET /tools`.
