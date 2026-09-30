@@ -15,6 +15,7 @@ from kyvon.config import Settings
 from kyvon.db import make_engine, make_session_factory
 from kyvon.llm.base import LLMClient
 from kyvon.llm.groq_client import GroqClient
+from kyvon.services.environment_context import EnvironmentCache
 from kyvon.services.environment_service import EnvironmentService
 from kyvon.utils.error_log import ErrorLog
 from kyvon.utils.rate_limit import FailureThrottle
@@ -36,6 +37,7 @@ class Services:
     engine: Engine
     session_factory: sessionmaker[Session]
     login_throttle: FailureThrottle
+    environment_cache: EnvironmentCache
 
 
 def create_app(
@@ -60,6 +62,7 @@ def create_app(
         engine=engine,
         session_factory=make_session_factory(engine),
         login_throttle=FailureThrottle(),
+        environment_cache=EnvironmentCache(),
     )
 
     register_error_handlers(app)
@@ -81,10 +84,14 @@ def create_app(
         return send_from_directory(WEB_DIR, "index.html")
 
     from kyvon.api.v1.auth import bp as auth_bp
+    from kyvon.api.v1.chat import bp as chat_bp
+    from kyvon.api.v1.conversations import bp as conversations_bp
     from kyvon.api.v1.routes import bp as v1_bp
     from kyvon.cli import cli
 
     app.register_blueprint(v1_bp)
     app.register_blueprint(auth_bp)
+    app.register_blueprint(chat_bp)
+    app.register_blueprint(conversations_bp)
     app.cli.add_command(cli)
     return app

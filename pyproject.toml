@@ -9,3 +9,5 @@ extend-exclude = [".venv"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]
+# The formatter wraps code; long strings/comments are left alone.
+ignore = ["E501"]

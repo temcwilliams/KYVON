@@ -1,83 +1,298 @@
-"""Chat orchestration: memory shortcuts, web search, or a normal model reply.
+"""One conversational turn: persistence, routing, context, model call, streaming.
 
-Routing order and response shapes match the prototype's /api/chat route.
+``ChatService.turn`` is a generator of events, so the plain JSON endpoint and the
+streaming (SSE) endpoint share exactly one implementation. Whatever happens (model
+error, client disconnect), the assistant message row ends up saved with an honest status.
+
+Routing order is unchanged from the prototype: memory shortcut -> ``web`` research ->
+normal model reply.
 """
 
 from __future__ import annotations
 
-from typing import Protocol
+import logging
+from collections.abc import Callable, Iterator
+from dataclasses import dataclass
 
-from kyvon.llm.base import LLMClient
-from kyvon.llm.prompts import DEFAULT_ENVIRONMENT, WEB_SYSTEM_PROMPT, build_system_prompt
-from kyvon.services.memory_service import parse_memory_shortcut
+from sqlalchemy.orm import Session
+
+from kyvon.config import Settings
+from kyvon.llm.base import LLMClient, LLMResponse
+from kyvon.llm.prompts import WEB_SYSTEM_PROMPT
+from kyvon.models import Conversation, Message
+from kyvon.services.context_builder import ContextBuilder, ContextLimits
+from kyvon.services.conversation_service import (
+    ConversationService,
+    serialize_conversation,
+    serialize_message,
+    title_from_text,
+)
+from kyvon.services.errors import ValidationFailure
+from kyvon.services.memory_service import MemoryService, parse_memory_shortcut
+from kyvon.services.summarizer import Summarizer
+
+log = logging.getLogger("kyvon.chat")
 
 MEMORY_SAVED_TEXT = "Understood. I have saved that to my memory."
 WEB_PROMPT_TEXT = "What would you like me to research?"
 WEB_PREFIX = "web "
-
 CHAT_TEMPERATURE = 0.7
 MAX_TOKENS = 1500
 
+TITLE_PROMPT = (
+    "Write a short title (at most 6 words, no quotes, no trailing punctuation) for a "
+    "conversation that starts with the exchange below. Output only the title."
+)
 
-class MemoryPort(Protocol):
-    def add(self, text: str) -> None: ...
 
-    def prompt_text(self) -> str: ...
-
-
-class ChatInputError(ValueError):
+class ChatInputError(ValidationFailure):
     """The message is missing or blank."""
 
 
-class ChatService:
-    def __init__(self, llm: LLMClient, memory: MemoryPort, *, model: str, web_model: str):
-        self._llm = llm
-        self._memory = memory
-        self._model = model
-        self._web_model = web_model
+class ChatFailed(RuntimeError):
+    """The turn failed; the persisted assistant message carries the error."""
 
-    def reply(self, message: str, environment: str | None = None) -> dict:
-        message = message.strip()
-        if not message:
+    def __init__(self, message: str, *, conversation_id: int, message_id: int | None):
+        super().__init__(message)
+        self.conversation_id = conversation_id
+        self.message_id = message_id
+
+
+@dataclass
+class TurnResult:
+    conversation: dict
+    user_message: dict
+    message: dict
+    flags: dict
+
+
+class ChatService:
+    def __init__(
+        self,
+        *,
+        session: Session,
+        settings: Settings,
+        llm: LLMClient,
+        conversations: ConversationService,
+        memory: MemoryService,
+        environment_text: Callable[[], str],
+        profile_text: Callable[[], str] = lambda: "",
+    ):
+        self._s = session
+        self._settings = settings
+        self._llm = llm
+        self._conversations = conversations
+        self._memory = memory
+        self._environment_text = environment_text
+        self._profile_text = profile_text
+        self._limits = ContextLimits(
+            max_tokens=settings.context_max_tokens,
+            max_messages=settings.context_max_messages,
+            reserve_tokens=settings.context_reserve_tokens,
+        )
+
+    # ------------------------------------------------------------------ public
+
+    def turn(self, message: str, conversation_id: int | None = None) -> Iterator[dict]:
+        text = (message or "").strip()
+        if not text:
             raise ChatInputError("Empty message.")
 
-        # 1. Memory shortcuts (no model call).
-        memory_text = parse_memory_shortcut(message)
-        if memory_text is not None:
-            self._memory.add(memory_text)
-            return {"response": MEMORY_SAVED_TEXT, "memory_saved": True}
+        conversation = (
+            self._conversations.get(conversation_id)
+            if conversation_id is not None
+            else self._conversations.create()
+        )
+        first_exchange = self._conversations.message_count(conversation.id) == 0
+        user_row = self._conversations.add_message(conversation, "user", text)
+        if first_exchange and not conversation.title:
+            conversation.title = title_from_text(text)
+            self._s.commit()
 
-        # 2. Web research.
-        if message.lower().startswith(WEB_PREFIX):
-            query = message[len(WEB_PREFIX) :].strip()
+        yield {
+            "type": "start",
+            "conversation": serialize_conversation(conversation),
+            "user_message": serialize_message(user_row),
+        }
+
+        shortcut = parse_memory_shortcut(text)
+        if shortcut is not None:
+            self._memory.add(shortcut)
+            yield from self._finish_fixed(
+                conversation, user_row, MEMORY_SAVED_TEXT, {"memory_saved": True}
+            )
+            return
+
+        if text.lower().startswith(WEB_PREFIX):
+            query = text[len(WEB_PREFIX) :].strip()
             if not query:
-                return {"response": WEB_PROMPT_TEXT}
-            return {"response": self._web_search(query), "web": True}
+                yield from self._finish_fixed(conversation, user_row, WEB_PROMPT_TEXT, {})
+                return
+            yield from self._web(conversation, user_row, query)
+            return
 
-        # 3. Normal conversation.
-        return {"response": self._ask(message, environment)}
+        yield from self._converse(conversation, user_row, first_exchange)
 
-    def _ask(self, message: str, environment: str | None) -> str:
-        prompt = build_system_prompt(
-            self._memory.prompt_text(),
-            environment if environment is not None else DEFAULT_ENVIRONMENT,
+    def reply(self, message: str, conversation_id: int | None = None) -> TurnResult:
+        """Run a turn to completion (used by the non-streaming endpoint)."""
+        conversation = user_message = result = None
+        # Exhaust the generator (rather than returning at "done") so that the
+        # post-turn housekeeping - summary, title - runs too.
+        for event in self.turn(message, conversation_id):
+            if event["type"] == "start":
+                conversation, user_message = event["conversation"], event["user_message"]
+            elif event["type"] == "error":
+                raise ChatFailed(
+                    event["message"],
+                    conversation_id=conversation["id"],
+                    message_id=event.get("message_id"),
+                )
+            elif event["type"] == "done":
+                result = TurnResult(
+                    conversation=event.get("conversation", conversation),
+                    user_message=user_message,
+                    message=event["message"],
+                    flags=event.get("flags", {}),
+                )
+        if result is None:  # pragma: no cover
+            raise RuntimeError("Turn ended without a result.")
+        return result
+
+    # ------------------------------------------------------------------ paths
+
+    def _finish_fixed(
+        self, conversation: Conversation, user_row: Message, text: str, flags: dict
+    ) -> Iterator[dict]:
+        row = self._conversations.add_message(conversation, "assistant", text)
+        yield {"type": "delta", "text": text}
+        yield self._done(conversation, row, flags)
+
+    def _web(self, conversation: Conversation, user_row: Message, query: str) -> Iterator[dict]:
+        row = self._conversations.add_message(
+            conversation, "assistant", "", status="partial", model=self._settings.web_model
         )
-        return self._llm.complete(
+        try:
+            answer = self._llm.complete(
+                [
+                    {"role": "system", "content": WEB_SYSTEM_PROMPT},
+                    {"role": "user", "content": query},
+                ],
+                model=self._settings.web_model,
+                max_tokens=MAX_TOKENS,
+            )
+        except Exception as error:
+            yield from self._fail(conversation, row, error)
+            return
+        self._conversations.finish_message(row, content=answer, model=self._settings.web_model)
+        yield {"type": "delta", "text": answer}
+        yield self._done(conversation, row, {"web": True})
+
+    def _converse(
+        self, conversation: Conversation, user_row: Message, first_exchange: bool
+    ) -> Iterator[dict]:
+        row = self._conversations.add_message(
+            conversation, "assistant", "", status="partial", model=self._settings.model
+        )
+        built = ContextBuilder(self._s, self._limits).build(
+            conversation,
+            profile=self._profile_text(),
+            memory=self._memory.retrieve_text(user_row.content),
+            environment=self._environment_text(),
+        )
+        # The empty placeholder row is not part of the history sent to the model.
+        pieces: list[str] = []
+        response: LLMResponse | None = None
+        try:
+            for event in self._llm.stream_chat(
+                built.messages,
+                model=self._settings.model,
+                temperature=CHAT_TEMPERATURE,
+                max_tokens=MAX_TOKENS,
+            ):
+                if event.type == "text":
+                    pieces.append(event.text)
+                    yield {"type": "delta", "text": event.text}
+                elif event.type == "done":
+                    response = event.response
+        except GeneratorExit:
+            # The client went away mid-stream: keep what was generated, flagged as partial.
+            self._conversations.finish_message(
+                row, content="".join(pieces), status="partial", model=self._settings.model
+            )
+            raise
+        except Exception as error:
+            yield from self._fail(conversation, row, error, keep_partial="".join(pieces))
+            return
+
+        content = (response.content if response else "".join(pieces)).strip()
+        usage = response.usage if response else None
+        self._conversations.finish_message(
+            row,
+            content=content,
+            model=(response.model if response and response.model else self._settings.model),
+            tokens_in=usage.prompt_tokens if usage else None,
+            tokens_out=usage.completion_tokens if usage else None,
+        )
+        done = self._done(conversation, row, {})
+        yield done
+        self._after_turn(conversation, user_row, row, built.included_message_ids, first_exchange)
+
+    # ------------------------------------------------------------------ helpers
+
+    def _done(self, conversation: Conversation, row: Message, flags: dict) -> dict:
+        self._s.refresh(conversation)
+        return {
+            "type": "done",
+            "conversation": serialize_conversation(conversation),
+            "message": serialize_message(row),
+            "flags": flags,
+        }
+
+    def _fail(
+        self, conversation: Conversation, row: Message, error: Exception, keep_partial: str = ""
+    ) -> Iterator[dict]:
+        log.warning("chat turn failed: %s", error)
+        message = str(error) or error.__class__.__name__
+        # The row keeps any partial text; the error text is what the client is told.
+        self._conversations.finish_message(
+            row, content=keep_partial or message, status="error", model=row.model
+        )
+        yield {"type": "error", "message": message, "message_id": row.id}
+
+    def _after_turn(
+        self,
+        conversation: Conversation,
+        user_row: Message,
+        assistant_row: Message,
+        included_ids: list[int],
+        first_exchange: bool,
+    ) -> None:
+        """Best-effort housekeeping; a failure here must never break the reply."""
+        try:
+            if first_exchange and self._settings.auto_title_llm:
+                self._generate_title(conversation, user_row, assistant_row)
+            first_included = min(included_ids) if included_ids else None
+            Summarizer(self._s, self._llm, self._settings.model).maybe_update(
+                conversation, first_included, trigger=self._settings.summary_trigger_messages
+            )
+        except Exception:
+            log.exception("post-turn housekeeping failed")
+            self._s.rollback()
+
+    def _generate_title(
+        self, conversation: Conversation, user_row: Message, assistant_row: Message
+    ) -> None:
+        title = self._llm.complete(
             [
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": message},
+                {"role": "system", "content": TITLE_PROMPT},
+                {
+                    "role": "user",
+                    "content": f"User: {user_row.content[:500]}\nAssistant: "
+                    f"{assistant_row.content[:500]}",
+                },
             ],
-            model=self._model,
-            temperature=CHAT_TEMPERATURE,
-            max_tokens=MAX_TOKENS,
+            model=self._settings.model,
+            temperature=0.3,
+            max_tokens=24,
         )
-
-    def _web_search(self, query: str) -> str:
-        return self._llm.complete(
-            [
-                {"role": "system", "content": WEB_SYSTEM_PROMPT},
-                {"role": "user", "content": query},
-            ],
-            model=self._web_model,
-            max_tokens=MAX_TOKENS,
-        )
+        self._conversations.set_auto_title(conversation, title)

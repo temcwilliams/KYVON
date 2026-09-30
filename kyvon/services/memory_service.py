@@ -53,10 +53,12 @@ class MemoryService:
         user_id: int,
         *,
         now: Callable[[], datetime] = utcnow,
+        max_memories: int = MAX_MEMORIES,
     ):
         self._session = session
         self._user_id = user_id
         self._now = now
+        self._max = max_memories
 
     def _live(self):
         return (
@@ -80,7 +82,7 @@ class MemoryService:
 
     def enforce_limit(self) -> None:
         live = list(self._session.scalars(self._live()))
-        for old in live[:-MAX_MEMORIES]:
+        for old in live[: max(len(live) - self._max, 0)]:
             old.deleted_at = self._now()
 
     def all(self) -> list[dict]:
@@ -95,6 +97,10 @@ class MemoryService:
             .select_from(Memory)
             .where(Memory.user_id == self._user_id, Memory.deleted_at.is_(None))
         )
+
+    def retrieve_text(self, query: str) -> str:
+        """Memory block for a prompt. (Relevance-based retrieval arrives with Phase 3.)"""
+        return self.prompt_text()
 
     def prompt_text(self) -> str:
         memories = list(self._session.scalars(self._live()))

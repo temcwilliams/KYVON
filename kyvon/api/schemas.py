@@ -13,7 +13,16 @@ class _Strict(BaseModel):
 
 class ChatRequest(_Strict):
     message: str = Field(max_length=MAX_TEXT)
-    environment: str | None = Field(default=None, max_length=MAX_TEXT)
+    conversation_id: int | None = Field(default=None, ge=1)
+
+
+class ConversationCreate(_Strict):
+    title: str | None = Field(default=None, max_length=200)
+
+
+class ConversationUpdate(_Strict):
+    title: str | None = Field(default=None, max_length=200)
+    archived: bool | None = None
 
 
 class EnvironmentRequest(_Strict):

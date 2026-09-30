@@ -7,7 +7,13 @@ import pytest
 def settings(tmp_path):
     from kyvon.config import Settings
 
-    return Settings.from_env({"GROQ_API_KEY": "test-key", "KYVON_DATA_DIR": str(tmp_path / "data")})
+    return Settings.from_env(
+        {
+            "GROQ_API_KEY": "test-key",
+            "KYVON_DATA_DIR": str(tmp_path / "data"),
+            "KYVON_AUTO_TITLE_LLM": "false",
+        }
+    )
 
 
 @pytest.fixture

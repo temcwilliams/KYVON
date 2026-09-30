@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#050505">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -15,52 +15,71 @@
 
 <body>
 
+    <a class="skip-link" href="#messageInput">Skip to message box</a>
+
     <div class="background"></div>
 
-    <main class="kyvon">
+    <div class="app">
 
-        <header>
-            <div class="brand">KYVON</div>
-            <div id="status" class="status">CONNECTING</div>
-        </header>
-
-        <section class="core">
-            <div class="ring ring-one"></div>
-            <div class="ring ring-two"></div>
-            <div class="ring ring-three"></div>
-
-            <div class="core-center">
-                <div class="core-text">KYVON</div>
-                <div id="listening" class="listening">STANDBY</div>
+        <aside id="drawer" class="drawer" aria-label="Menu">
+            <div class="drawer-head">
+                <div class="drawer-title">MENU</div>
+                <button id="drawerClose" class="mini" aria-label="Close menu">Close</button>
             </div>
-        </section>
+            <nav id="tabs" class="tabs" role="tablist" aria-label="Sections"></nav>
+            <div id="panel" class="panel" role="tabpanel"></div>
+        </aside>
+        <div id="scrim" class="scrim"></div>
 
-        <section id="conversation" class="conversation">
-            <div class="message kyvon-message">
-                <span class="speaker">Kyvon:</span>
-                <span>Systems initialized. How may I assist?</span>
-            </div>
-        </section>
+        <main class="kyvon">
 
-        <section class="input-area">
-            <input
-                id="messageInput"
-                type="text"
-                placeholder="Speak or type to KYVON..."
-                autocomplete="off"
-            >
-            <button id="sendButton">SEND</button>
-            <button id="micButton">🎙️</button>
-        </section>
+            <header>
+                <button id="menuButton" class="menu-button" aria-label="Open menu" aria-expanded="false"
+                    aria-controls="drawer">☰</button>
+                <div class="brand">KYVON</div>
+                <div id="status" class="status" role="status" aria-live="polite">CONNECTING</div>
+            </header>
 
-        <footer>
-            <button id="systemButton">SYSTEM</button>
-            <button id="memoryButton">MEMORY</button>
-            <button id="clearButton">CLEAR</button>
-            <button id="logoutButton">SIGN OUT</button>
-        </footer>
+            <section class="core" aria-hidden="true">
+                <div class="ring ring-one"></div>
+                <div class="ring ring-two"></div>
+                <div class="ring ring-three"></div>
 
-    </main>
+                <div class="core-center">
+                    <div class="core-text">KYVON</div>
+                    <div id="listening" class="listening">STANDBY</div>
+                </div>
+            </section>
+
+            <section id="conversation" class="conversation" role="log" aria-live="polite"
+                aria-label="Conversation" tabindex="0">
+                <div class="message kyvon-message">
+                    <span class="speaker">Kyvon:</span>
+                    <span>Systems initialized. How may I assist?</span>
+                </div>
+            </section>
+
+            <section class="input-area">
+                <input
+                    id="messageInput"
+                    type="text"
+                    placeholder="Speak or type to KYVON..."
+                    autocomplete="off"
+                    aria-label="Message to KYVON"
+                >
+                <button id="sendButton" aria-label="Send message">SEND</button>
+                <button id="micButton" aria-label="Voice input">🎙️</button>
+            </section>
+
+            <footer>
+                <button id="systemButton">SYSTEM</button>
+                <button id="memoryButton">MEMORY</button>
+                <button id="clearButton">NEW CHAT</button>
+                <button id="logoutButton">SIGN OUT</button>
+            </footer>
+
+        </main>
+    </div>
 
     <div id="login" class="login" hidden>
         <form id="loginForm">
@@ -69,6 +88,7 @@
                 id="loginUsername"
                 type="text"
                 placeholder="Username"
+                aria-label="Username"
                 autocomplete="username"
                 autocapitalize="none"
                 required
@@ -77,6 +97,7 @@
                 id="loginPassword"
                 type="password"
                 placeholder="Password"
+                aria-label="Password"
                 autocomplete="current-password"
                 required
             >

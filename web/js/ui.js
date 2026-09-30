@@ -1,28 +1,57 @@
-// DOM helpers shared by the other modules.
+// Conversation view helpers shared by the other modules.
+
+import { h } from "./dom.js";
 
 const conversation = document.getElementById("conversation");
 const status = document.getElementById("status");
 const listening = document.getElementById("listening");
 
-export function addMessage(speaker, text, type) {
-    const message = document.createElement("div");
-    message.className = `message ${type}-message`;
+const STATUS_NOTES = {
+    partial: " (interrupted)",
+    error: "",
+};
 
-    const who = document.createElement("span");
-    who.className = "speaker";
-    who.textContent = `${speaker}:`;
+// Adds a message and returns a handle so streamed text can be appended.
+export function addMessage(speaker, text, type, { status: messageStatus = "complete" } = {}) {
+    const body = h("span", { class: "message-text" }, text);
+    const note = h("span", { class: "message-note" });
+    const el = h(
+        "div",
+        { class: `message ${type}-message${messageStatus === "error" ? " message-error" : ""}` },
+        h("span", { class: "speaker" }, `${speaker}:`),
+        " ",
+        body,
+        note
+    );
+    if (STATUS_NOTES[messageStatus]) note.textContent = STATUS_NOTES[messageStatus];
+    conversation.appendChild(el);
+    scrollToEnd();
 
-    // textContent (never innerHTML) so model or server text cannot inject markup.
-    const body = document.createElement("span");
-    body.textContent = text;
-
-    message.append(who, " ", body);
-    conversation.appendChild(message);
-    conversation.scrollTop = conversation.scrollHeight;
+    return {
+        el,
+        append(more) {
+            body.textContent += more;
+            scrollToEnd();
+        },
+        set(value) {
+            body.textContent = value;
+            scrollToEnd();
+        },
+        markError() {
+            el.classList.add("message-error");
+        },
+        markInterrupted() {
+            note.textContent = STATUS_NOTES.partial;
+        },
+    };
 }
 
 export function say(text) {
-    addMessage("Kyvon", text, "kyvon");
+    return addMessage("Kyvon", text, "kyvon");
+}
+
+export function scrollToEnd() {
+    conversation.scrollTop = conversation.scrollHeight;
 }
 
 export function setStatus(text) {
@@ -35,5 +64,4 @@ export function setListening(text) {
 
 export function clearConversation() {
     conversation.replaceChildren();
-    say("Conversation cleared.");
 }

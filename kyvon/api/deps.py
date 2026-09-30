@@ -81,3 +81,23 @@ def login_required(view):
         return view(*args, **kwargs)
 
     return wrapper
+
+
+def build_chat_service(session: Session | None = None, user_id: int | None = None):
+    """A ChatService for a user. Defaults to the signed-in user and the request's session."""
+    from kyvon.services.chat_service import ChatService
+    from kyvon.services.conversation_service import ConversationService
+    from kyvon.services.environment_context import render_environment
+    from kyvon.services.memory_service import MemoryService
+
+    svc = services()
+    session = session or get_session()
+    user_id = user_id if user_id is not None else g.user.id
+    return ChatService(
+        session=session,
+        settings=svc.settings,
+        llm=svc.llm,
+        conversations=ConversationService(session, user_id),
+        memory=MemoryService(session, user_id, max_memories=svc.settings.memory_max),
+        environment_text=lambda: render_environment(svc.environment_cache.get(user_id)),
+    )
