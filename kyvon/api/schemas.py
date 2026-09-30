@@ -90,3 +90,20 @@ class AgentRunCreate(_Strict):
     agent: str = Field(min_length=1, max_length=32)
     goal: str = Field(min_length=1, max_length=2000)
     conversation_id: int | None = Field(default=None, ge=1)
+
+
+class AutomationCreate(_Strict):
+    name: str = Field(min_length=1, max_length=120)
+    kind: str = Field(max_length=16)
+    schedule: dict
+    text: str | None = Field(default=None, max_length=500)
+    prompt: str | None = Field(default=None, max_length=1000)
+    timezone: str | None = Field(default=None, max_length=64)
+
+
+class AutomationUpdate(_Strict):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    schedule: dict | None = None
+    text: str | None = Field(default=None, max_length=500)
+    prompt: str | None = Field(default=None, max_length=1000)
+    enabled: bool | None = None

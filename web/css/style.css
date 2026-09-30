@@ -725,3 +725,36 @@ textarea {
     font-size: 12px;
     line-height: 1.5;
 }
+
+/* ---- inbox ---- */
+
+.bell {
+    position: relative;
+}
+
+.badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+
+    min-width: 18px;
+    padding: 1px 5px;
+
+    border-radius: 9px;
+
+    background: #d24d4d;
+    color: #fff;
+
+    font-size: 10px;
+    line-height: 1.4;
+}
+
+.item.unread {
+    border-color: #b59a3a;
+}
+
+.note-body {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 13px;
+}

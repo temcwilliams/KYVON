@@ -36,6 +36,8 @@ _INTS: dict[str, tuple[str, int, int, int]] = {
     "llm_timeout_seconds": ("KYVON_LLM_TIMEOUT_SECONDS", 60, 5, 600),
     "max_request_bytes": ("KYVON_MAX_REQUEST_BYTES", 1_000_000, 1024, 50_000_000),
     "hermes_timeout_seconds": ("KYVON_HERMES_TIMEOUT_SECONDS", 90, 5, 600),
+    "scheduler_tick_seconds": ("KYVON_SCHEDULER_TICK_SECONDS", 30, 1, 3600),
+    "automation_max_per_user": ("KYVON_AUTOMATION_MAX_PER_USER", 50, 1, 1000),
     "agent_max_depth": ("KYVON_AGENT_MAX_DEPTH", 1, 1, 3),
     "agent_timeout_cap_seconds": ("KYVON_AGENT_TIMEOUT_CAP_SECONDS", 150, 10, 900),
     "agent_max_tool_calls": ("KYVON_AGENT_MAX_TOOL_CALLS", 12, 1, 50),
@@ -46,6 +48,7 @@ _INTS: dict[str, tuple[str, int, int, int]] = {
 
 _FLAGS: dict[str, tuple[str, bool]] = {
     "auto_title_llm": ("KYVON_AUTO_TITLE_LLM", True),
+    "scheduler_enabled": ("KYVON_SCHEDULER", True),
     "hermes_allow_remote": ("KYVON_HERMES_ALLOW_REMOTE", False),
 }
 
@@ -115,6 +118,11 @@ class Settings:
 
     # Logseq (Phase 8, optional): path of a Logseq graph folder
     logseq_dir: str = ""
+
+    # Automation (Phase 9)
+    scheduler_enabled: bool = True
+    scheduler_tick_seconds: int = 30
+    automation_max_per_user: int = 50
 
     # Agents (Phase 6)
     agent_max_depth: int = (

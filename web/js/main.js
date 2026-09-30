@@ -5,6 +5,8 @@ import { newConversation, openConversation, sendMessage } from "./chat.js";
 import "./conversations.js";
 import "./tasks.js";
 import "./notes.js";
+import "./automations.js";
+import { startPolling, stopPolling } from "./notifications.js";
 import { handleOAuthReturn } from "./calendar.js";
 import { api } from "./api.js";
 import { runDiagnostics } from "./diagnostics.js";
@@ -35,6 +37,7 @@ function start() {
     started = true;
 
     restoreLastConversation();
+    startPolling();
     handleOAuthReturn();
     runDiagnostics();
     // Ask the device for location permission.
@@ -60,6 +63,7 @@ function bindControls() {
     document.getElementById("logoutButton").addEventListener("click", async () => {
         await logout();
         started = false;
+        stopPolling();
         state.conversationId = null;
         clearConversation();
         say("Signed out.");

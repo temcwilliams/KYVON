@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import atexit
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,8 @@ from kyvon.agents.runner import AgentRunner
 from kyvon.agents.service import AgentService
 from kyvon.api.deps import close_session
 from kyvon.api.errors import register_error_handlers
+from kyvon.automation.runner import AutomationRunner
+from kyvon.automation.scheduler import Scheduler
 from kyvon.config import Settings
 from kyvon.db import make_engine, make_session_factory
 from kyvon.integrations.hermes import build_hermes
@@ -53,6 +56,9 @@ class Services:
     agent_runner: Any = None
     hermes: Any = None  # HermesBackend | None (optional)
     logseq: Any = None  # KnowledgeBase | None (optional)
+    automation_runner: Any = None
+    scheduler: Any = None
+    push: Any = None  # web/native push sender (Phase 11), optional
     agent_service: Any = None
 
 
@@ -86,6 +92,8 @@ def create_app(
     container.logseq = build_graph(settings.logseq_dir)
     container.executor = ToolExecutor(container.registry, container)
     container.agent_runner = AgentRunner(container)
+    container.automation_runner = AutomationRunner(container)
+    container.scheduler = Scheduler(container, tick_seconds=settings.scheduler_tick_seconds)
     container.agent_service = AgentService(container)
     with container.session_factory() as startup_session:
         try:
@@ -93,6 +101,9 @@ def create_app(
         except Exception:  # the database may not be migrated yet (e.g. running db-upgrade)
             startup_session.rollback()
     app.extensions["kyvon"] = container
+    if settings.scheduler_enabled and settings.env != "testing":
+        container.scheduler.start()
+        atexit.register(container.scheduler.stop)
 
     register_error_handlers(app)
     app.teardown_appcontext(close_session)
@@ -114,6 +125,7 @@ def create_app(
 
     from kyvon.api.v1.agents import bp as agents_bp
     from kyvon.api.v1.auth import bp as auth_bp
+    from kyvon.api.v1.automations import bp as automations_bp
     from kyvon.api.v1.calendar import bp as calendar_bp
     from kyvon.api.v1.chat import bp as chat_bp
     from kyvon.api.v1.conversations import bp as conversations_bp
@@ -136,5 +148,6 @@ def create_app(
     app.register_blueprint(agents_bp)
     app.register_blueprint(integrations_bp)
     app.register_blueprint(logseq_bp)
+    app.register_blueprint(automations_bp)
     app.cli.add_command(cli)
     return app

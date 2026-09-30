@@ -9,6 +9,7 @@ def build_registry() -> ToolRegistry:
     """A registry containing every built-in tool."""
     from kyvon.tools.builtin import (
         agent_tools,
+        automation_tools,
         calendar_tools,
         conversation_tools,
         environment_tools,
@@ -28,6 +29,7 @@ def build_registry() -> ToolRegistry:
         calendar_tools,
         agent_tools,
         logseq_tools,
+        automation_tools,
     ):
         module.register(registry)
     return registry
