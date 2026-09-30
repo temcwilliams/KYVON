@@ -5,7 +5,7 @@ import pytest
 from kyvon.config import ConfigError, Settings
 
 
-def test_defaults_match_prototype():
+def test_defaults():
     s = Settings.from_env({"GROQ_API_KEY": "k"})
     assert s.model == "openai/gpt-oss-120b"
     assert s.web_model == "groq/compound"

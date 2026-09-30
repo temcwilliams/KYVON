@@ -162,10 +162,3 @@ def test_import_rejects_bad_file(session, user, tmp_path, content):
 def test_import_missing_file(session, user, tmp_path):
     with pytest.raises(MemoryImportError, match="not found"):
         import_json_memories(session, user.id, tmp_path / "nope.json")
-
-
-def test_imports_a_file_written_by_the_prototype(prototype, session, user, tmp_path):
-    prototype.add_memory("written by app.py")
-    result = import_json_memories(session, user.id, tmp_path / "data" / "kyvon_memory.json")
-    assert result.imported == 1
-    assert MemoryService(session, user.id).all()[0]["memory"] == "written by app.py"

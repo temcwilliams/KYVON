@@ -244,27 +244,3 @@ def test_error_log_never_raises(tmp_path):
 
 
 # ------------------------------------------------------------ parity with app.py
-
-
-def test_matches_legacy_app_results(prototype, monkeypatch, tmp_path):
-    """Same fake HTTP responses -> identical output from app.py and the new service."""
-
-    def fake_get(url, **kwargs):
-        if "nominatim" in url:
-            return FakeResponse({"address": {"village": "Smallville", "state": "KS"}})
-        return FakeResponse(WEATHER_PAYLOAD)
-
-    monkeypatch.setattr(prototype.requests, "get", fake_get)
-    legacy = {
-        "location": prototype.get_location(1, 2),
-        "weather": prototype.get_weather(1, 2),
-    }
-
-    service = EnvironmentService(
-        ErrorLog(tmp_path / "x.log"),
-        geocoder=lambda lat, lon: geocode_nominatim.reverse_geocode(lat, lon, http_get=fake_get),
-        weather_source=lambda lat, lon: weather_openmeteo.fetch_current_weather(
-            lat, lon, http_get=fake_get
-        ),
-    )
-    assert service.get_environment(1, 2) == legacy

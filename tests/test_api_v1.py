@@ -217,3 +217,11 @@ def test_page_has_no_inline_script_or_handlers(anon_client):
     html = anon_client.get("/").get_data(as_text=True)
     assert " onclick=" not in html
     assert "<script>" not in html
+
+
+def test_create_app_creates_data_dir(settings, fake_llm):
+    import shutil
+
+    shutil.rmtree(settings.data_dir, ignore_errors=True)
+    make_app(settings, llm=fake_llm)
+    assert settings.data_dir.is_dir()

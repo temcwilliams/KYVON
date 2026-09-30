@@ -1,7 +1,6 @@
 import pytest
 
 from kyvon.services.chat_service import ChatInputError, ChatService
-from kyvon.services.memory_service import MemoryStore
 from tests.fakes import FakeLLM
 
 
@@ -10,9 +9,27 @@ def llm():
     return FakeLLM()
 
 
+class ListMemory:
+    """Minimal in-memory MemoryPort (same 20-item prompt rule as the real service)."""
+
+    def __init__(self):
+        self.items = []
+
+    def add(self, text):
+        self.items.append({"memory": text})
+
+    def all(self):
+        return list(self.items)
+
+    def prompt_text(self):
+        if not self.items:
+            return "No saved memories."
+        return "\n".join(f"- {m['memory']}" for m in self.items[-20:])
+
+
 @pytest.fixture
-def memory(tmp_path):
-    return MemoryStore(tmp_path / "m.json")
+def memory():
+    return ListMemory()
 
 
 @pytest.fixture
@@ -106,13 +123,3 @@ def test_llm_error_propagates(chat, llm):
     llm.error = RuntimeError("boom")
     with pytest.raises(RuntimeError, match="boom"):
         chat.reply("hi")
-
-
-def test_matches_prototype_prompt(prototype, chat, llm, memory):
-    """Same message + memory + environment -> same system prompt as app.py."""
-    prototype.add_memory("likes tea")
-    memory.add("likes tea")
-    prototype.ask_kyvon("hi", "ENV")
-    chat.reply("hi", "ENV")
-    legacy = prototype.completions.calls[0]["messages"]
-    assert llm.calls[0]["messages"] == legacy

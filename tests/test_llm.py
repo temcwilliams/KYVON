@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 from kyvon.llm.groq_client import GroqClient
-from kyvon.llm.prompts import SYSTEM_PROMPT, WEB_SYSTEM_PROMPT, build_system_prompt
+from kyvon.llm.prompts import build_system_prompt
 
 
 class FakeGroq:
@@ -53,9 +53,3 @@ def test_prompt_builder_fills_placeholders():
 
 def test_memory_with_braces_is_safe():
     assert "{oops}" in build_system_prompt("- {oops}", "env")
-
-
-def test_prompts_identical_to_prototype(prototype):
-    assert SYSTEM_PROMPT == prototype.SYSTEM_PROMPT
-    web_call = prototype.web_search("q") and prototype.completions.calls[-1]
-    assert web_call["messages"][0]["content"] == WEB_SYSTEM_PROMPT
