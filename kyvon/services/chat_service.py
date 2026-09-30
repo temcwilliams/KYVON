@@ -10,6 +10,7 @@ normal model reply.
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
@@ -35,6 +36,7 @@ from kyvon.services.memory_service import (
     parse_recall_request,
 )
 from kyvon.services.summarizer import Summarizer
+from kyvon.tools.executor import CallOrigin, ToolExecutor, serialize_tool_run
 
 log = logging.getLogger("kyvon.chat")
 
@@ -44,6 +46,7 @@ WEB_PROMPT_TEXT = "What would you like me to research?"
 WEB_PREFIX = "web "
 CHAT_TEMPERATURE = 0.7
 MAX_TOKENS = 1500
+MAX_CALLS_PER_ROUND = 5
 
 TITLE_PROMPT = (
     "Write a short title (at most 6 words, no quotes, no trailing punctuation) for a "
@@ -79,18 +82,24 @@ class ChatService:
         session: Session,
         settings: Settings,
         llm: LLMClient,
+        user_id: int,
         conversations: ConversationService,
         memory: MemoryService,
         environment_text: Callable[[], str],
         profile_text: Callable[[], str] = lambda: "",
+        executor: ToolExecutor | None = None,
+        tool_names: set[str] | None = None,
     ):
         self._s = session
         self._settings = settings
         self._llm = llm
+        self._user_id = user_id
         self._conversations = conversations
         self._memory = memory
         self._environment_text = environment_text
         self._profile_text = profile_text
+        self._executor = executor
+        self._tool_names = tool_names  # None: every enabled tool
         self._limits = ContextLimits(
             max_tokens=settings.context_max_tokens,
             max_messages=settings.context_max_messages,
@@ -212,7 +221,18 @@ class ChatService:
             conversation, "assistant", "", status="partial", model=self._settings.web_model
         )
         try:
-            answer = self._llm.complete(
+            answer = self._run_web_search(conversation, query)
+        except Exception as error:
+            yield from self._fail(conversation, row, error)
+            return
+        self._conversations.finish_message(row, content=answer, model=self._settings.web_model)
+        yield {"type": "delta", "text": answer}
+        yield self._done(conversation, row, {"web": True})
+
+    def _run_web_search(self, conversation: Conversation, query: str) -> str:
+        """The ``web `` shortcut runs the same audited tool the model would use."""
+        if self._executor is None:
+            return self._llm.complete(
                 [
                     {"role": "system", "content": WEB_SYSTEM_PROMPT},
                     {"role": "user", "content": query},
@@ -220,12 +240,20 @@ class ChatService:
                 model=self._settings.web_model,
                 max_tokens=MAX_TOKENS,
             )
-        except Exception as error:
-            yield from self._fail(conversation, row, error)
-            return
-        self._conversations.finish_message(row, content=answer, model=self._settings.web_model)
-        yield {"type": "delta", "text": answer}
-        yield self._done(conversation, row, {"web": True})
+        outcome = self._executor.call(
+            self._s,
+            CallOrigin(self._user_id, conversation.id, origin="chat"),
+            "web_search",
+            {"query": query},
+        )
+        if outcome.status != "succeeded":
+            raise RuntimeError(outcome.content.get("error", "The web search failed."))
+        return outcome.content["data"]["answer"]
+
+    def _tool_specs(self) -> list[dict]:
+        if self._executor is None:
+            return []
+        return self._executor.specs(self._tool_names)
 
     def _converse(
         self, conversation: Conversation, user_row: Message, first_exchange: bool
@@ -240,42 +268,149 @@ class ChatService:
             environment=self._environment_text(),
         )
         # The empty placeholder row is not part of the history sent to the model.
-        pieces: list[str] = []
-        response: LLMResponse | None = None
+        messages = list(built.messages)
+        specs = self._tool_specs()
+        origin = CallOrigin(self._user_id, conversation.id, origin="chat")
+        max_rounds = self._settings.tool_max_iterations
+
+        pieces: list[str] = []  # all assistant text, across tool rounds
+        tokens_in = tokens_out = 0
+        saw_usage = False
+        last_model = self._settings.model
+        pending_runs: list[int] = []
+
         try:
-            for event in self._llm.stream_chat(
-                built.messages,
-                model=self._settings.model,
-                temperature=CHAT_TEMPERATURE,
-                max_tokens=MAX_TOKENS,
-            ):
-                if event.type == "text":
-                    pieces.append(event.text)
-                    yield {"type": "delta", "text": event.text}
-                elif event.type == "done":
-                    response = event.response
+            for round_no in range(max_rounds + 1):
+                # On the last round tools are withheld, forcing a final written answer.
+                offer_tools = specs if round_no < max_rounds else None
+                response: LLMResponse | None = None
+                round_text: list[str] = []
+                if pieces:
+                    pieces.append("\n\n")
+                    yield {"type": "delta", "text": "\n\n"}
+                for event in self._llm.stream_chat(
+                    messages,
+                    model=self._settings.model,
+                    tools=offer_tools,
+                    temperature=CHAT_TEMPERATURE,
+                    max_tokens=MAX_TOKENS,
+                ):
+                    if event.type == "text":
+                        round_text.append(event.text)
+                        pieces.append(event.text)
+                        yield {"type": "delta", "text": event.text}
+                    elif event.type == "done":
+                        response = event.response
+                if response is not None:
+                    last_model = response.model or last_model
+                    if response.usage:
+                        saw_usage = True
+                        tokens_in += response.usage.prompt_tokens or 0
+                        tokens_out += response.usage.completion_tokens or 0
+
+                if response is None or not response.tool_calls or self._executor is None:
+                    break
+
+                yield from self._run_tools(conversation, origin, response, messages, pending_runs)
         except GeneratorExit:
             # The client went away mid-stream: keep what was generated, flagged as partial.
             self._conversations.finish_message(
-                row, content="".join(pieces), status="partial", model=self._settings.model
+                row, content="".join(pieces).strip(), status="partial", model=last_model
             )
             raise
         except Exception as error:
-            yield from self._fail(conversation, row, error, keep_partial="".join(pieces))
+            yield from self._fail(conversation, row, error, keep_partial="".join(pieces).strip())
             return
 
-        content = (response.content if response else "".join(pieces)).strip()
-        usage = response.usage if response else None
+        content = "".join(pieces).strip()
         self._conversations.finish_message(
             row,
             content=content,
-            model=(response.model if response and response.model else self._settings.model),
-            tokens_in=usage.prompt_tokens if usage else None,
-            tokens_out=usage.completion_tokens if usage else None,
+            model=last_model,
+            tokens_in=tokens_in if saw_usage else None,
+            tokens_out=tokens_out if saw_usage else None,
         )
-        done = self._done(conversation, row, {})
-        yield done
+        flags: dict = {}
+        if pending_runs:
+            flags["pending_confirmations"] = self._pending_payload(pending_runs)
+        yield self._done(conversation, row, flags)
         self._after_turn(conversation, user_row, row, built.included_message_ids, first_exchange)
+
+    def _run_tools(
+        self,
+        conversation: Conversation,
+        origin: CallOrigin,
+        response: LLMResponse,
+        messages: list[dict],
+        pending_runs: list[int],
+    ) -> Iterator[dict]:
+        """Execute the tool calls the model asked for and feed the results back."""
+        calls = response.tool_calls
+        messages.append(
+            {
+                "role": "assistant",
+                "content": response.content or "",
+                "tool_calls": [
+                    {
+                        "id": c.id,
+                        "type": "function",
+                        "function": {"name": c.name, "arguments": c.arguments},
+                    }
+                    for c in calls
+                ],
+            }
+        )
+        self._conversations.add_message(
+            conversation,
+            "assistant",
+            response.content or "",
+            kind="tool_call",
+            tool_calls=[
+                {"id": c.id, "name": c.name, "arguments": c.arguments[:2000]} for c in calls
+            ],
+        )
+        for index, call in enumerate(calls):
+            if index >= MAX_CALLS_PER_ROUND:
+                text = json.dumps(
+                    {"ok": False, "error": "Too many tool calls at once; call skipped."}
+                )
+                outcome = None
+            else:
+                yield {"type": "tool", "name": call.name, "status": "running"}
+                try:
+                    outcome = self._executor.call(
+                        self._s, origin, call.name, call.arguments, call_id=call.id
+                    )
+                    text = outcome.for_model()
+                except Exception:  # the executor itself should not raise; be safe
+                    log.exception("tool executor failed")
+                    text = json.dumps({"ok": False, "error": "The tool could not be run."})
+                    outcome = None
+                    self._s.rollback()
+            messages.append({"role": "tool", "tool_call_id": call.id, "content": text})
+            self._conversations.add_message(
+                conversation,
+                "tool",
+                text[:4000],
+                kind="tool_result",
+                tool_call_id=call.id,
+                tool_name=call.name,
+            )
+            yield {
+                "type": "tool",
+                "name": call.name,
+                "status": outcome.status if outcome else "failed",
+                "tool_run_id": outcome.run_id if outcome else None,
+                "summary": outcome.summary if outcome else "",
+            }
+            if outcome is not None and outcome.pending and outcome.run_id not in pending_runs:
+                pending_runs.append(outcome.run_id)
+
+    def _pending_payload(self, run_ids: list[int]) -> list[dict]:
+        from kyvon.models import ToolRun
+
+        runs = self._s.scalars(select(ToolRun).where(ToolRun.id.in_(run_ids))).all()
+        return [serialize_tool_run(r) for r in runs]
 
     # ------------------------------------------------------------------ helpers
 

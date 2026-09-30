@@ -44,6 +44,7 @@ def make_chat(session, llm):
             session=session,
             settings=settings,
             llm=llm,
+            user_id=user.id,
             conversations=ConversationService(session, user.id),
             memory=MemoryService(session, user.id),
             environment_text=overrides.pop("environment_text", lambda: "ENV TEXT"),

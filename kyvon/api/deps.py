@@ -97,6 +97,7 @@ def build_chat_service(session: Session | None = None, user_id: int | None = Non
         session=session,
         settings=svc.settings,
         llm=svc.llm,
+        user_id=user_id,
         conversations=ConversationService(session, user_id),
         memory=MemoryService(
             session,
@@ -105,6 +106,7 @@ def build_chat_service(session: Session | None = None, user_id: int | None = Non
             retrieval_k=svc.settings.memory_retrieval_k,
         ),
         environment_text=lambda: render_environment(svc.environment_cache.get(user_id)),
+        executor=svc.executor,
     )
 
 

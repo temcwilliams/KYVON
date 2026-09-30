@@ -18,8 +18,8 @@ export function addMessage(speaker, text, type, { status: messageStatus = "compl
     const el = h(
         "div",
         { class: `message ${type}-message${messageStatus === "error" ? " message-error" : ""}` },
-        h("span", { class: "speaker" }, `${speaker}:`),
-        " ",
+        speaker ? h("span", { class: "speaker" }, `${speaker}:`) : null,
+        speaker ? " " : null,
         body,
         note
     );

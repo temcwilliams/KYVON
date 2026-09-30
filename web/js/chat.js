@@ -2,6 +2,7 @@
 
 import { ApiError, api, stream } from "./api.js";
 import { addMessage, clearConversation, say, setListening, setStatus } from "./ui.js";
+import { loadPending, showPending } from "./confirmations.js";
 import { emit, state } from "./state.js";
 
 const input = document.getElementById("messageInput");
@@ -30,6 +31,7 @@ export async function openConversation(id) {
     const data = await api(`/conversations/${id}/messages`);
     state.conversationId = id;
     renderHistory(data.messages);
+    loadPending(id);
     emit("conversation:opened", id);
 }
 
@@ -44,6 +46,29 @@ export function newConversation() {
 
 export function cancelReply() {
     if (controller) controller.abort();
+}
+
+const TOOL_LABELS = {
+    running: "working…",
+    succeeded: "done",
+    failed: "failed",
+    rejected: "not available",
+    pending_confirmation: "waiting for your approval",
+};
+
+let activeTool = null;
+
+function showToolActivity(event) {
+    const label = TOOL_LABELS[event.status] || event.status;
+    const text = `⚙ ${event.name} — ${label}`;
+    if (event.status === "running") {
+        activeTool = addMessage("", text, "tool");
+    } else if (activeTool) {
+        activeTool.set(text);
+        activeTool = null;
+    } else {
+        addMessage("", text, "tool");
+    }
 }
 
 function setBusy(busy) {
@@ -80,8 +105,11 @@ export async function sendMessage() {
                 } else if (type === "delta") {
                     if (!reply) reply = addMessage("Kyvon", "", "kyvon");
                     reply.append(data.text);
+                } else if (type === "tool") {
+                    showToolActivity(data);
                 } else if (type === "done") {
                     if (!reply) reply = addMessage("Kyvon", data.message.content, "kyvon");
+                    showPending(data.flags && data.flags.pending_confirmations);
                     emit("turn:done", data);
                 } else if (type === "error") {
                     failed = true;

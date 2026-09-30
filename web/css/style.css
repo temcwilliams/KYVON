@@ -644,3 +644,38 @@ textarea {
 .note.error {
     color: #ff9a9a;
 }
+
+/* ---- tool activity and approvals ---- */
+
+.tool-message {
+    font-size: 12px;
+    opacity: 0.7;
+    padding: 6px 5px;
+}
+
+.confirm-card {
+    margin: 10px 0;
+    padding: 12px;
+
+    border: 1px solid #b59a3a;
+    border-radius: 6px;
+
+    background: rgba(181, 154, 58, 0.08);
+}
+
+.confirm-summary {
+    margin: 8px 0;
+    line-height: 1.5;
+}
+
+.confirm-args {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 11px;
+    opacity: 0.85;
+}
+
+.confirm-status {
+    font-size: 12px;
+    margin: 8px 0 0;
+}

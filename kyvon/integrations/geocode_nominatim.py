@@ -45,3 +45,30 @@ def reverse_geocode(
         "country": country,
         "display": ", ".join(part for part in [city, state, country] if part),
     }
+
+
+SEARCH_URL = "https://nominatim.openstreetmap.org/search"
+
+
+def forward_geocode(
+    query: str,
+    *,
+    http_get: Callable[..., requests.Response] = requests.get,
+) -> dict | None:
+    """Look up a place name. Returns ``{"latitude", "longitude", "display"}`` or None."""
+    response = http_get(
+        SEARCH_URL,
+        params={"q": query, "format": "json", "limit": 1},
+        headers={"User-Agent": USER_AGENT},
+        timeout=TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+    results = response.json()
+    if not results:
+        return None
+    first = results[0]
+    return {
+        "latitude": float(first["lat"]),
+        "longitude": float(first["lon"]),
+        "display": first.get("display_name", query),
+    }

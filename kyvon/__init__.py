@@ -17,6 +17,9 @@ from kyvon.llm.base import LLMClient
 from kyvon.llm.groq_client import GroqClient
 from kyvon.services.environment_context import EnvironmentCache
 from kyvon.services.environment_service import EnvironmentService
+from kyvon.tools import build_registry
+from kyvon.tools.executor import ToolExecutor
+from kyvon.tools.registry import ToolRegistry
 from kyvon.utils.error_log import ErrorLog
 from kyvon.utils.rate_limit import FailureThrottle
 
@@ -38,6 +41,8 @@ class Services:
     session_factory: sessionmaker[Session]
     login_throttle: FailureThrottle
     environment_cache: EnvironmentCache
+    registry: ToolRegistry
+    executor: ToolExecutor | None = None
 
 
 def create_app(
@@ -54,16 +59,19 @@ def create_app(
     app.logger.setLevel(settings.log_level)
     error_log = ErrorLog(settings.error_log)
     engine = make_engine(settings.db_url)
-    app.extensions["kyvon"] = Services(
+    container = Services(
         settings=settings,
-        llm=llm or GroqClient(settings.groq_api_key),
+        llm=llm or GroqClient(settings.groq_api_key, timeout=settings.llm_timeout_seconds),
         environment=environment or EnvironmentService(error_log),
         error_log=error_log,
         engine=engine,
         session_factory=make_session_factory(engine),
         login_throttle=FailureThrottle(),
         environment_cache=EnvironmentCache(),
+        registry=build_registry(),
     )
+    container.executor = ToolExecutor(container.registry, container)
+    app.extensions["kyvon"] = container
 
     register_error_handlers(app)
     app.teardown_appcontext(close_session)
@@ -88,6 +96,7 @@ def create_app(
     from kyvon.api.v1.conversations import bp as conversations_bp
     from kyvon.api.v1.memories import bp as memories_bp
     from kyvon.api.v1.routes import bp as v1_bp
+    from kyvon.api.v1.tools import bp as tools_bp
     from kyvon.cli import cli
 
     app.register_blueprint(v1_bp)
@@ -95,5 +104,6 @@ def create_app(
     app.register_blueprint(chat_bp)
     app.register_blueprint(conversations_bp)
     app.register_blueprint(memories_bp)
+    app.register_blueprint(tools_bp)
     app.cli.add_command(cli)
     return app

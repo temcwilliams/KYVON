@@ -112,6 +112,12 @@ def test_password_is_hashed(owner, session):
     assert TEST_PASSWORD not in hashed and hashed.startswith(("scrypt:", "pbkdf2:"))
 
 
+def test_production_hashing_uses_scrypt():
+    from werkzeug.security import generate_password_hash
+
+    assert generate_password_hash("a long password").startswith("scrypt:")
+
+
 def test_login_never_echoes_password_or_hash(anon_client, owner):
     text = login(anon_client).get_data(as_text=True)
     assert TEST_PASSWORD not in text and "scrypt" not in text
