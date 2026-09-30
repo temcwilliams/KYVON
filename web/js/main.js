@@ -6,6 +6,7 @@ import "./conversations.js";
 import "./tasks.js";
 import "./notes.js";
 import "./automations.js";
+import { reportTimezone } from "./settings.js";
 import { startPolling, stopPolling } from "./notifications.js";
 import { handleOAuthReturn } from "./calendar.js";
 import { api } from "./api.js";
@@ -37,6 +38,7 @@ function start() {
     started = true;
 
     restoreLastConversation();
+    reportTimezone();
     startPolling();
     handleOAuthReturn();
     runDiagnostics();

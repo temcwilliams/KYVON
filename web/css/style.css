@@ -758,3 +758,22 @@ textarea {
     word-break: break-word;
     font-size: 13px;
 }
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    font-size: 12px;
+}
+
+.field.check {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+}
+
+.field textarea,
+.field input[type="text"] {
+    width: 100%;
+}

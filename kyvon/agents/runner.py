@@ -27,7 +27,7 @@ from kyvon.db import utcnow
 from kyvon.models import AgentRun
 from kyvon.services.environment_context import render_environment
 from kyvon.services.errors import ConflictError, NotFoundError, ValidationFailure
-from kyvon.services.settings_service import timezone_for
+from kyvon.services.settings_service import get_settings, timezone_for
 from kyvon.tools.executor import CallOrigin
 from kyvon.utils.redact import redact
 
@@ -108,8 +108,11 @@ class AgentRunner:
             raise ValidationFailure(f"Goals are limited to {MAX_GOAL} characters.")
         if depth > self._services.settings.agent_max_depth:
             raise ConflictError("Agents cannot start other agents.")
-        if definition.backend == "hermes" and getattr(self._services, "hermes", None) is None:
-            raise ConflictError("Hermes is not configured on this server.")
+        if definition.backend == "hermes":
+            if getattr(self._services, "hermes", None) is None:
+                raise ConflictError("Hermes is not configured on this server.")
+            if not get_settings(session, user_id).hermes_enabled:
+                raise ConflictError("Hermes is turned off in your settings.")
         run = AgentRun(
             user_id=user_id,
             conversation_id=conversation_id,

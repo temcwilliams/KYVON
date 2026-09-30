@@ -380,7 +380,12 @@ class ChatService:
                 yield {"type": "tool", "name": call.name, "status": "running"}
                 try:
                     outcome = self._executor.call(
-                        self._s, origin, call.name, call.arguments, call_id=call.id
+                        self._s,
+                        origin,
+                        call.name,
+                        call.arguments,
+                        allowed=self._tool_names,
+                        call_id=call.id,
                     )
                     text = outcome.for_model()
                 except Exception:  # the executor itself should not raise; be safe

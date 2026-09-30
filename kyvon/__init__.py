@@ -133,6 +133,7 @@ def create_app(
     from kyvon.api.v1.logseq import bp as logseq_bp
     from kyvon.api.v1.memories import bp as memories_bp
     from kyvon.api.v1.routes import bp as v1_bp
+    from kyvon.api.v1.settings import bp as settings_bp
     from kyvon.api.v1.tasks import bp as tasks_bp
     from kyvon.api.v1.tools import bp as tools_bp
     from kyvon.cli import cli
@@ -149,5 +150,6 @@ def create_app(
     app.register_blueprint(integrations_bp)
     app.register_blueprint(logseq_bp)
     app.register_blueprint(automations_bp)
+    app.register_blueprint(settings_bp)
     app.cli.add_command(cli)
     return app

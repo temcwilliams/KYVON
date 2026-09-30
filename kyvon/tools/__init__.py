@@ -15,6 +15,7 @@ def build_registry() -> ToolRegistry:
         environment_tools,
         logseq_tools,
         memory_tools,
+        settings_tools,
         task_tools,
         web_tools,
     )
@@ -30,6 +31,7 @@ def build_registry() -> ToolRegistry:
         agent_tools,
         logseq_tools,
         automation_tools,
+        settings_tools,
     ):
         module.register(registry)
     return registry

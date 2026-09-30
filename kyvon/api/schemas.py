@@ -107,3 +107,24 @@ class AutomationUpdate(_Strict):
     text: str | None = Field(default=None, max_length=500)
     prompt: str | None = Field(default=None, max_length=1000)
     enabled: bool | None = None
+
+
+class SettingsUpdate(BaseModel):
+    """Partial update: only the fields sent are changed (null clears optional fields)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    timezone: str | None = None
+    detected_timezone: str | None = None
+    display_name: str | None = None
+    response_style: str | None = None
+    tone: str | None = None
+    units: str | None = None
+    language: str | None = None
+    week_starts_on: str | None = None
+    assistant_notes: str | None = None
+    allow_memory_proposals: bool | None = None
+    voice_replies: bool | None = None
+    calendar_enabled: bool | None = None
+    logseq_enabled: bool | None = None
+    hermes_enabled: bool | None = None

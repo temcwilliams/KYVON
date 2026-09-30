@@ -25,6 +25,18 @@ def safe_zone(name: str | None) -> ZoneInfo:
         return ZoneInfo("UTC")
 
 
+def to_celsius(fahrenheit):
+    return None if fahrenheit is None else round((fahrenheit - 32) * 5 / 9, 1)
+
+
+def kmh(mph):
+    return None if mph is None else round(mph * 1.609344, 1)
+
+
+def mm(inches):
+    return None if inches is None else round(inches * 25.4, 1)
+
+
 class EnvironmentCache:
     def __init__(self, *, ttl: float = CACHE_TTL_SECONDS, clock: Callable[[], float] = time.time):
         self._ttl = ttl
@@ -49,7 +61,11 @@ class EnvironmentCache:
 
 
 def render_environment(
-    environment: dict | None, *, now: datetime | None = None, timezone: str | None = None
+    environment: dict | None,
+    *,
+    now: datetime | None = None,
+    timezone: str | None = None,
+    units: str = "imperial",
 ) -> str:
     """Text block for the prompt: server time plus, when known, location and weather."""
     now = (now or datetime.now(UTC)).astimezone(
@@ -66,13 +82,27 @@ def render_environment(
     if location:
         lines.append(f"Location: {location.get('display', 'Unknown')}")
     if weather:
+        if units == "metric":
+            temp, feels = (
+                to_celsius(weather.get("temperature")),
+                to_celsius(weather.get("feels_like")),
+            )
+            temperature = f"Temperature: {temp}°C (feels like {feels}°C)"
+            precipitation = f"Precipitation: {mm(weather.get('precipitation'))} mm"
+            wind = f"Wind: {kmh(weather.get('wind'))} km/h"
+        else:
+            temperature = (
+                f"Temperature: {weather.get('temperature')}°F "
+                f"(feels like {weather.get('feels_like')}°F)"
+            )
+            precipitation = f"Precipitation: {weather.get('precipitation')} inches"
+            wind = f"Wind: {weather.get('wind')} mph"
         lines += [
             f"Weather: {weather.get('condition')}",
-            f"Temperature: {weather.get('temperature')}°F "
-            f"(feels like {weather.get('feels_like')}°F)",
+            temperature,
             f"Humidity: {weather.get('humidity')}%",
-            f"Precipitation: {weather.get('precipitation')} inches",
-            f"Wind: {weather.get('wind')} mph",
+            precipitation,
+            wind,
             f"Time zone: {weather.get('timezone')}",
         ]
     return "\n".join(lines)
