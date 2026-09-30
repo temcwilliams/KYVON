@@ -80,6 +80,8 @@ class Tool:
     retries: int = 0  # extra attempts on unexpected errors; READ tools only
     untrusted_output: bool = False
     enabled: Callable[[Any], bool] | None = None  # hide the tool when this returns False
+    # Build the function definition per request (for tools whose options depend on config).
+    spec_factory: Callable[[Any], dict] | None = None
 
     @property
     def requires_confirmation(self) -> bool:
@@ -98,8 +100,10 @@ class Tool:
                 pass
         return f"Run {self.name}"
 
-    def spec(self) -> dict:
+    def spec(self, services: Any = None) -> dict:
         """The OpenAI-style function definition sent to the model."""
+        if self.spec_factory is not None:
+            return self.spec_factory(services)
         schema = self.args_model.model_json_schema()
         return {
             "type": "function",

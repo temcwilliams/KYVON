@@ -367,7 +367,12 @@ def test_the_main_model_is_told_which_agents_exist(client, fake_llm):
     assert all(
         name in description for name in ("researcher", "planner", "productivity", "memory_curator")
     )
-    assert spec["function"]["parameters"]["properties"]["agent"]["enum"] == sorted(DEFINITIONS)
+    assert spec["function"]["parameters"]["properties"]["agent"]["enum"] == [
+        "memory_curator",
+        "planner",
+        "productivity",
+        "researcher",
+    ]
 
 
 # ------------------------------------------------------------ API

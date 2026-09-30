@@ -220,3 +220,53 @@ class FakeGoogle:
         event["start"], event["end"] = start, end
         self.events[event["id"]] = event
         return event
+
+
+class FakeHermesHTTP:
+    """A stand-in for an OpenAI-compatible endpoint. Replies come from ``script``."""
+
+    def __init__(self):
+        self.requests: list[dict] = []
+        self.script: list = []  # dict bodies, Exceptions, or ints (HTTP error status)
+        self.models = ["hermes-3"]
+
+    def request(self, method, url, headers=None, json=None, timeout=None, **kwargs):
+        self.requests.append(
+            {"method": method, "url": url, "headers": headers, "json": json, "timeout": timeout}
+        )
+        if url.endswith("/models"):
+            return FakeHTTPResponse(200, {"data": [{"id": m} for m in self.models]})
+        item = self.script.pop(0) if self.script else self.message("A reply from Hermes.")
+        if isinstance(item, Exception):
+            raise item
+        if isinstance(item, int):
+            return FakeHTTPResponse(item, {"error": "nope"})
+        return FakeHTTPResponse(200, item)
+
+    @staticmethod
+    def message(content="", tool_calls=None, usage=(11, 7)):
+        message = {"role": "assistant", "content": content}
+        if tool_calls:
+            message["tool_calls"] = tool_calls
+        return {
+            "model": "hermes-3",
+            "choices": [
+                {"message": message, "finish_reason": "tool_calls" if tool_calls else "stop"}
+            ],
+            "usage": {"prompt_tokens": usage[0], "completion_tokens": usage[1]},
+        }
+
+    @staticmethod
+    def tool_call(id, name, arguments):
+        import json as _json
+
+        return {
+            "id": id,
+            "type": "function",
+            "function": {
+                "name": name,
+                "arguments": arguments
+                if isinstance(arguments, (str, dict))
+                else _json.dumps(arguments),
+            },
+        }

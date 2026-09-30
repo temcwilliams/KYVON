@@ -12,6 +12,7 @@ from kyvon.api.errors import ApiError
 from kyvon.api.schemas import AgentRunCreate
 from kyvon.models import ToolRun
 from kyvon.services.conversation_service import ConversationService
+from kyvon.tools.builtin.agent_tools import available_agents
 from kyvon.tools.executor import serialize_tool_run
 
 bp = Blueprint("agents", __name__, url_prefix="/api/v1/agents")
@@ -20,11 +21,13 @@ bp = Blueprint("agents", __name__, url_prefix="/api/v1/agents")
 @bp.get("")
 @login_required
 def list_agents():
+    usable = available_agents(services())
     return jsonify(
         {
             "agents": [
                 {
                     "name": d.name,
+                    "available": d.name in usable,
                     "role": d.role,
                     "description": d.description,
                     "tools": list(d.tools),

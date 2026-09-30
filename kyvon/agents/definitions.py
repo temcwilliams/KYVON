@@ -128,8 +128,35 @@ MEMORY_CURATOR = AgentDefinition(
     max_tool_calls=10,
 )
 
+HERMES = AgentDefinition(
+    name="hermes",
+    role="general-purpose helper (running on the Hermes model)",
+    description=(
+        "A second, independent model for open-ended analysis, drafting and brainstorming, "
+        "with read-only access to search, tasks and calendar. Only available when Hermes is "
+        "configured."
+    ),
+    system_prompt=(
+        "Think carefully and give a well-reasoned answer. You can look things up with your "
+        "read-only tools; you cannot change anything."
+    ),
+    tools=(
+        "web_search",
+        "memory_search",
+        "task_list",
+        "calendar_list_events",
+        "conversation_search",
+        "get_weather",
+        "get_current_time",
+    ),
+    max_steps=6,
+    max_tool_calls=8,
+    timeout_seconds=150,
+    backend="hermes",
+)
+
 DEFINITIONS: dict[str, AgentDefinition] = {
-    d.name: d for d in (RESEARCHER, PLANNER, PRODUCTIVITY, MEMORY_CURATOR)
+    d.name: d for d in (RESEARCHER, PLANNER, PRODUCTIVITY, MEMORY_CURATOR, HERMES)
 }
 
 

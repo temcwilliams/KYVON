@@ -53,4 +53,4 @@ class ToolRegistry:
         ]
 
     def specs(self, services: Any, allowed: Iterable[str] | None = None) -> list[dict]:
-        return [t.spec() for t in self.available(services, allowed)]
+        return [t.spec(services) for t in self.available(services, allowed)]

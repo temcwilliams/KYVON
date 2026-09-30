@@ -35,6 +35,7 @@ _INTS: dict[str, tuple[str, int, int, int]] = {
     "confirmation_ttl_minutes": ("KYVON_CONFIRMATION_TTL_MINUTES", 60, 1, 10_080),
     "llm_timeout_seconds": ("KYVON_LLM_TIMEOUT_SECONDS", 60, 5, 600),
     "max_request_bytes": ("KYVON_MAX_REQUEST_BYTES", 1_000_000, 1024, 50_000_000),
+    "hermes_timeout_seconds": ("KYVON_HERMES_TIMEOUT_SECONDS", 90, 5, 600),
     "agent_max_depth": ("KYVON_AGENT_MAX_DEPTH", 1, 1, 3),
     "agent_timeout_cap_seconds": ("KYVON_AGENT_TIMEOUT_CAP_SECONDS", 150, 10, 900),
     "agent_max_tool_calls": ("KYVON_AGENT_MAX_TOOL_CALLS", 12, 1, 50),
@@ -45,6 +46,7 @@ _INTS: dict[str, tuple[str, int, int, int]] = {
 
 _FLAGS: dict[str, tuple[str, bool]] = {
     "auto_title_llm": ("KYVON_AUTO_TITLE_LLM", True),
+    "hermes_allow_remote": ("KYVON_HERMES_ALLOW_REMOTE", False),
 }
 
 _STRINGS: dict[str, tuple[str, str]] = {
@@ -55,6 +57,9 @@ _STRINGS: dict[str, tuple[str, str]] = {
     "encryption_key": ("KYVON_ENCRYPTION_KEY", ""),
     "google_client_id": ("GOOGLE_CLIENT_ID", ""),
     "google_client_secret": ("GOOGLE_CLIENT_SECRET", ""),
+    "hermes_url": ("KYVON_HERMES_URL", ""),
+    "hermes_api_key": ("KYVON_HERMES_API_KEY", ""),
+    "hermes_model": ("KYVON_HERMES_MODEL", "hermes"),
 }
 
 _TRUE = ("1", "true", "yes", "on")
@@ -99,6 +104,13 @@ class Settings:
     encryption_key: str = ""
     google_client_id: str = ""
     google_client_secret: str = ""
+
+    # Hermes (Phase 7, optional): an OpenAI-compatible endpoint used as an agent backend
+    hermes_url: str = ""
+    hermes_api_key: str = ""
+    hermes_model: str = "hermes"
+    hermes_allow_remote: bool = False
+    hermes_timeout_seconds: int = 90
 
     # Agents (Phase 6)
     agent_max_depth: int = (

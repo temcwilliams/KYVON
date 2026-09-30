@@ -26,7 +26,7 @@ def list_tools():
                     "description": t.description,
                     "risk": t.risk.value,
                     "requires_confirmation": t.requires_confirmation,
-                    "parameters": t.spec()["function"]["parameters"],
+                    "parameters": t.spec(svc)["function"]["parameters"],
                 }
                 for t in svc.registry.available(svc)
             ]

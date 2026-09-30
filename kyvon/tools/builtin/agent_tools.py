@@ -28,17 +28,59 @@ class DelegateArgs(ToolArgs):
         return value
 
 
-def _catalogue() -> str:
-    return " ".join(f"{d.name}: {d.description}" for d in DEFINITIONS.values())
+def available_agents(services) -> dict:
+    """Agents that can run right now (Hermes only when it is configured)."""
+    return {
+        name: d
+        for name, d in DEFINITIONS.items()
+        if d.backend != "hermes" or getattr(services, "hermes", None) is not None
+    }
+
+
+def _catalogue(services) -> str:
+    return " ".join(f"{d.name}: {d.description}" for d in available_agents(services).values())
+
+
+def _spec(services) -> dict:
+    """The function definition, listing only the agents that are usable right now."""
+    agents = available_agents(services)
+    schema = DelegateArgs.model_json_schema()
+    properties = schema["properties"]
+    properties["agent"] = {
+        "type": "string",
+        "description": "Which specialist to use.",
+        "enum": sorted(agents),
+    }
+    for field in properties.values():
+        field.pop("title", None)
+    return {
+        "type": "function",
+        "function": {
+            "name": "delegate_to_agent",
+            "description": DESCRIPTION + _catalogue(services),
+            "parameters": {
+                "type": "object",
+                "properties": properties,
+                "required": ["agent", "goal"],
+                "additionalProperties": False,
+            },
+        },
+    }
+
+
+DESCRIPTION = (
+    "Hand a complex, multi-step job to a specialist agent and get its report back. Use it "
+    "only when the job needs several lookups or actions; answer simple requests yourself. "
+    "Specialists: "
+)
 
 
 def register(registry: ToolRegistry) -> None:
     @registry.tool(
         "delegate_to_agent",
-        "Hand a complex, multi-step job to a specialist agent and get its report back. Use it "
-        "only when the job needs several lookups or actions; answer simple requests yourself. "
-        "Specialists: " + _catalogue(),
+        DESCRIPTION,
         DelegateArgs,
+        spec_factory=_spec,
         risk=RiskLevel.WRITE,  # agents may create tasks; anything consequential still needs approval
         timeout=240,
         untrusted_output=True,
