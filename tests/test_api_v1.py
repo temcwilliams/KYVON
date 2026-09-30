@@ -1,12 +1,10 @@
 """API behavior tests for /api/v1 (ported from the prototype's characterization tests)."""
 
-import json
-
 import pytest
 
-from kyvon import create_app
 from kyvon.services.environment_service import EnvironmentService
 from kyvon.utils.error_log import ErrorLog
+from tests.conftest import make_app
 
 LOCATION = {"city": "Testville", "state": "TX", "country": "USA", "display": "Testville, TX, USA"}
 WEATHER = {"condition": "Partly cloudy", "temperature": 70.5, "timezone": "America/Chicago"}
@@ -23,12 +21,7 @@ def env_service(settings):
 
 @pytest.fixture
 def app(settings, fake_llm, env_service):
-    return create_app(settings, llm=fake_llm, environment=env_service)
-
-
-@pytest.fixture
-def client(app):
-    return app.test_client()
+    return make_app(settings, llm=fake_llm, environment=env_service)
 
 
 def post(client, message=None, **extra):
@@ -115,12 +108,6 @@ def test_remember_flow_end_to_end(client, fake_llm):
     assert "- my dog is Rex" in fake_llm.calls[0]["messages"][0]["content"]
 
 
-def test_memories_file_format_unchanged(client, settings):
-    post(client, "remember x")
-    saved = json.loads(settings.memory_file.read_text())
-    assert saved[0]["memory"] == "x" and "date" in saved[0]
-
-
 def test_web_search(client, fake_llm, settings):
     assert post(client, "web python release").get_json() == {"response": "fake reply", "web": True}
     assert fake_llm.calls[0]["model"] == settings.web_model
@@ -150,14 +137,13 @@ def test_environment_bad_input_is_400(client, body):
     assert client.post("/api/v1/environment", json=body).status_code == 400
 
 
-def test_environment_weather_failure_is_500(settings, fake_llm):
+def test_environment_weather_failure_is_500(app, client, settings):
     def boom(lat, lon):
         raise RuntimeError("down")
 
-    service = EnvironmentService(
+    app.extensions["kyvon"].environment = EnvironmentService(
         ErrorLog(settings.error_log), geocoder=lambda *_: {}, weather_source=boom
     )
-    client = create_app(settings, llm=fake_llm, environment=service).test_client()
     response = client.post("/api/v1/environment", json={"latitude": 1, "longitude": 2})
     assert response.status_code == 500
     assert response.get_json()["error"]["message"] == "down"

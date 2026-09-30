@@ -34,8 +34,8 @@ def test_models_unchanged(prototype):
 # ---------------------------------------------------------------- pages
 
 
-def test_index_served(client):
-    response = client.get("/")
+def test_index_served(legacy_client):
+    response = legacy_client.get("/")
     assert response.status_code == 200
     assert b"KYVON" in response.data
 
@@ -43,21 +43,21 @@ def test_index_served(client):
 # ---------------------------------------------------------------- chat validation
 
 
-def test_chat_requires_message(client):
-    response = client.post("/api/chat", json={})
+def test_chat_requires_message(legacy_client):
+    response = legacy_client.post("/api/chat", json={})
     assert response.status_code == 400
     assert response.get_json() == {"error": "No message provided."}
 
 
-def test_chat_rejects_blank_message(client):
-    response = client.post("/api/chat", json={"message": "   "})
+def test_chat_rejects_blank_message(legacy_client):
+    response = legacy_client.post("/api/chat", json={"message": "   "})
     assert response.status_code == 400
     assert response.get_json() == {"error": "Empty message."}
 
 
-def test_chat_non_string_message_is_500(client):
+def test_chat_non_string_message_is_500(legacy_client):
     # Known quirk: no type validation, .strip() raises.
-    response = client.post("/api/chat", json={"message": 5})
+    response = legacy_client.post("/api/chat", json={"message": 5})
     assert response.status_code == 500
     assert response.get_json()["diagnosed"] is True
 
@@ -65,8 +65,8 @@ def test_chat_non_string_message_is_500(client):
 # ---------------------------------------------------------------- LLM chat
 
 
-def test_plain_chat_calls_main_model(client, prototype):
-    response = client.post("/api/chat", json={"message": "hello"})
+def test_plain_chat_calls_main_model(legacy_client, prototype):
+    response = legacy_client.post("/api/chat", json={"message": "hello"})
     assert response.status_code == 200
     assert response.get_json() == {"response": "fake reply"}
 
@@ -79,16 +79,16 @@ def test_plain_chat_calls_main_model(client, prototype):
     assert user == {"role": "user", "content": "hello"}
 
 
-def test_chat_is_stateless_single_user_message(client, prototype):
-    client.post("/api/chat", json={"message": "first"})
-    client.post("/api/chat", json={"message": "second"})
+def test_chat_is_stateless_single_user_message(legacy_client, prototype):
+    legacy_client.post("/api/chat", json={"message": "first"})
+    legacy_client.post("/api/chat", json={"message": "second"})
     for call in prototype.completions.calls:
         assert [m["role"] for m in call["messages"]] == ["system", "user"]
 
 
-def test_environment_and_memory_injected_into_prompt(client, prototype):
-    client.post("/api/chat", json={"message": "remember I like tea"})
-    client.post(
+def test_environment_and_memory_injected_into_prompt(legacy_client, prototype):
+    legacy_client.post("/api/chat", json={"message": "remember I like tea"})
+    legacy_client.post(
         "/api/chat",
         json={"message": "hi", "environment": "CURRENT LOCATION: Testville"},
     )
@@ -97,16 +97,16 @@ def test_environment_and_memory_injected_into_prompt(client, prototype):
     assert "CURRENT LOCATION: Testville" in system
 
 
-def test_default_environment_text(client, prototype):
-    client.post("/api/chat", json={"message": "hi"})
+def test_default_environment_text(legacy_client, prototype):
+    legacy_client.post("/api/chat", json={"message": "hi"})
     system = prototype.completions.calls[0]["messages"][0]["content"]
     assert "No location or weather information available." in system
     assert "No saved memories." in system
 
 
-def test_llm_failure_returns_500_and_logs(client, prototype, tmp_path):
+def test_llm_failure_returns_500_and_logs(legacy_client, prototype, tmp_path):
     prototype.completions.error = RuntimeError("boom")
-    response = client.post("/api/chat", json={"message": "hi"})
+    response = legacy_client.post("/api/chat", json={"message": "hi"})
     assert response.status_code == 500
     assert response.get_json() == {"error": "boom", "diagnosed": True}
     assert "Chat Error" in (tmp_path / "data" / "kyvon_errors.log").read_text()
@@ -115,8 +115,8 @@ def test_llm_failure_returns_500_and_logs(client, prototype, tmp_path):
 # ---------------------------------------------------------------- memory
 
 
-def test_remember_saves_without_calling_llm(client, prototype, tmp_path):
-    response = client.post("/api/chat", json={"message": "remember my dog is Rex"})
+def test_remember_saves_without_calling_llm(legacy_client, prototype, tmp_path):
+    response = legacy_client.post("/api/chat", json={"message": "remember my dog is Rex"})
     assert response.get_json() == {
         "response": "Understood. I have saved that to my memory.",
         "memory_saved": True,
@@ -128,30 +128,30 @@ def test_remember_saves_without_calling_llm(client, prototype, tmp_path):
     assert "date" in saved[0]
 
 
-def test_remember_prefix_is_case_insensitive(client):
-    response = client.post("/api/chat", json={"message": "REMEMBER x"})
+def test_remember_prefix_is_case_insensitive(legacy_client):
+    response = legacy_client.post("/api/chat", json={"message": "REMEMBER x"})
     assert response.get_json()["memory_saved"] is True
 
 
-def test_remember_that_keeps_word_that_quirk(client):
+def test_remember_that_keeps_word_that_quirk(legacy_client):
     # Known quirk: "remember " matches first, so "that" stays in the text.
-    client.post("/api/chat", json={"message": "remember that I am tall"})
-    memories = client.get("/api/memory").get_json()["memories"]
+    legacy_client.post("/api/chat", json={"message": "remember that I am tall"})
+    memories = legacy_client.get("/api/memory").get_json()["memories"]
     assert memories[0]["memory"] == "that I am tall"
 
 
 @pytest.mark.parametrize("phrase", ["don't forget that ", "keep in mind that "])
-def test_other_memory_phrases(client, phrase):
-    response = client.post("/api/chat", json={"message": phrase + "milk is low"})
+def test_other_memory_phrases(legacy_client, phrase):
+    response = legacy_client.post("/api/chat", json={"message": phrase + "milk is low"})
     assert response.get_json()["memory_saved"] is True
-    memories = client.get("/api/memory").get_json()["memories"]
+    memories = legacy_client.get("/api/memory").get_json()["memories"]
     assert memories[-1]["memory"] == "milk is low"
 
 
-def test_empty_remember_payload_falls_through_to_llm(client, prototype):
+def test_empty_remember_payload_falls_through_to_llm(legacy_client, prototype):
     # "remember" with nothing after it does not match the "remember " prefix
     # (message is stripped), so it goes to the model.
-    response = client.post("/api/chat", json={"message": "remember"})
+    response = legacy_client.post("/api/chat", json={"message": "remember"})
     assert response.get_json() == {"response": "fake reply"}
     assert len(prototype.completions.calls) == 1
 
@@ -171,8 +171,8 @@ def test_prompt_uses_only_last_20_memories(prototype):
     assert text[0] == "- item 5" and text[-1] == "- item 24"
 
 
-def test_memory_endpoint_empty(client):
-    assert client.get("/api/memory").get_json() == {"memories": []}
+def test_memory_endpoint_empty(legacy_client):
+    assert legacy_client.get("/api/memory").get_json() == {"memories": []}
 
 
 def test_corrupt_memory_file_loads_empty(prototype, tmp_path):
@@ -188,17 +188,17 @@ def test_non_list_memory_file_loads_empty(prototype, tmp_path):
 # ---------------------------------------------------------------- web search
 
 
-def test_web_prefix_uses_compound_model(client, prototype):
-    response = client.post("/api/chat", json={"message": "web latest python release"})
+def test_web_prefix_uses_compound_model(legacy_client, prototype):
+    response = legacy_client.post("/api/chat", json={"message": "web latest python release"})
     assert response.get_json() == {"response": "fake reply", "web": True}
     (call,) = prototype.completions.calls
     assert call["model"] == prototype.WEB_MODEL
     assert call["messages"][1]["content"] == "latest python release"
 
 
-def test_web_without_query_falls_through_to_llm(client, prototype):
+def test_web_without_query_falls_through_to_llm(legacy_client, prototype):
     # "web" alone (stripped) lacks the "web " prefix -> normal chat.
-    response = client.post("/api/chat", json={"message": "web"})
+    response = legacy_client.post("/api/chat", json={"message": "web"})
     assert response.get_json() == {"response": "fake reply"}
     assert prototype.completions.calls[0]["model"] == prototype.MODEL
 
@@ -236,9 +236,9 @@ def fake_requests_get(url, **kwargs):
     )
 
 
-def test_environment_endpoint(client, prototype, monkeypatch):
+def test_environment_endpoint(legacy_client, prototype, monkeypatch):
     monkeypatch.setattr(prototype.requests, "get", fake_requests_get)
-    response = client.post("/api/environment", json={"latitude": 1, "longitude": 2})
+    response = legacy_client.post("/api/environment", json={"latitude": 1, "longitude": 2})
     assert response.status_code == 200
     body = response.get_json()
     assert body["location"] == {
@@ -252,8 +252,8 @@ def test_environment_endpoint(client, prototype, monkeypatch):
     assert body["weather"]["timezone"] == "America/Chicago"
 
 
-def test_environment_bad_input_is_500(client):
-    response = client.post("/api/environment", json={"latitude": "x"})
+def test_environment_bad_input_is_500(legacy_client):
+    response = legacy_client.post("/api/environment", json={"latitude": "x"})
     assert response.status_code == 500
     assert "error" in response.get_json()
 
@@ -286,17 +286,17 @@ def test_unknown_weather_code(prototype, monkeypatch):
 # ---------------------------------------------------------------- status
 
 
-def test_status_online(client, prototype):
-    body = client.get("/api/status").get_json()
+def test_status_online(legacy_client, prototype):
+    body = legacy_client.get("/api/status").get_json()
     assert body["online"] is True
     assert [d["name"] for d in body["diagnostics"]] == ["Python", "Memory", "Groq AI"]
     # Known quirk: status makes a live LLM call.
     assert len(prototype.completions.calls) == 1
 
 
-def test_status_reports_llm_error(client, prototype):
+def test_status_reports_llm_error(legacy_client, prototype):
     prototype.completions.error = RuntimeError("no groq")
-    body = client.get("/api/status").get_json()
+    body = legacy_client.get("/api/status").get_json()
     assert body["online"] is False
     assert body["diagnostics"][-1] == {
         "name": "Groq AI",

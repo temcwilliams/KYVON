@@ -19,3 +19,11 @@ class ChatRequest(_Strict):
 class EnvironmentRequest(_Strict):
     latitude: float = Field(ge=-90, le=90)
     longitude: float = Field(ge=-180, le=180)
+
+
+class LoginRequest(_Strict):
+    username: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=1, max_length=1024)
+    device_name: str = Field(default="", max_length=100)
+    # True for the web client: the token goes in an HttpOnly cookie, not the body.
+    cookie: bool = False
