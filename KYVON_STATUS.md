@@ -1,180 +1,93 @@
-# KYVON — Project Status Report
+# KYVON — Project Status
 
-Generated 2026-09-29 from a read-only inspection. No code was modified and the app was not run. Statements marked *(inferred)* come from reading the code, not from running it.
+Updated at the end of **Phase 1 (Foundation)**. This replaces the original prototype audit; that audit is in git history (commit `6d6acb5`). Phase 1 is implemented and verified in the development environment but **has not been deployed** to the Ubuntu VM.
 
-## TL;DR
+## Summary
 
-KYVON is a small (~1,700 lines, 3 commits) single-file Flask app with a browser front end. It does chat via Groq, keyword-triggered "remember" memory, keyword-triggered web search, and GPS-based location and weather. **Tasks, calendar, authentication, an iPhone/iPad client, and deployment do not exist.** The README describes tasks and calendar as goals only. The code is a prototype, and there is not yet a foundation to build those features on.
+KYVON is now a modular Flask application with a versioned JSON API, a SQLite database, single-owner authentication, and a separate web client. The prototype's behavior (chat, memory, web search, location, weather, voice input, diagnostics) is preserved. Tasks, calendar, conversation history, tools, and agents are not built yet. They are Phases 2-6.
 
----
-
-## Repository
+## Architecture
 
 ```
-app.py               657 lines  Flask backend (all logic)
-templates/index.html 150 lines  Single page UI
-static/app.js        568 lines  Front-end logic
-static/style.css     312 lines  Styling (HUD look)
-requirements.txt       flask, groq, python-dotenv, requests
-tasks.json             stray file: ["My favorite color is blue"]
-README.md              2 lines
-.vscode/settings.json  editor config
+Browser / future iOS app
+        │  HTTPS (Cloudflare Tunnel) — cookie session (web) or bearer token (native)
+        ▼
+gunicorn (port 8080) → Flask app factory (kyvon.create_app)
+   api/     /api/v1 routes, Pydantic validation, auth guard, JSON errors
+   services/ chat · memory · memory_import · auth · environment · status
+   llm/     LLMClient protocol → GroqClient (openai/gpt-oss-120b, groq/compound)
+   integrations/ Nominatim (reverse geocode) · Open-Meteo (weather)
+   models/  SQLAlchemy 2 → SQLite data/kyvon.db (Alembic migrations)
+web/        plain ES modules (api, auth, chat, env, memory, diagnostics, voice, ui, main)
 ```
 
-No `.gitignore`, tests, CI, Dockerfile, Procfile, `.env` or `.env.example`. Remote: GitHub `temcwilliams/jarvis-assistant` (branch `main` only).
-
-**Git history**
-
-| Commit | Date | Summary |
-|---|---|---|
-| 8c73865 | 2026-09-03 | Initial commit (README) |
-| 93cee14 | 2026-09-15 | "Update JARVIS web version": all app code added in one commit |
-| 8763d0a | 2026-09-20 | Rename JARVIS to KYVON (incomplete, see below) |
-
----
-
-## Current architecture
-
-```
-Browser (iPad Safari / any browser)
-   │  fetch JSON
-   ▼
-Flask app.py  (0.0.0.0:8080, debug off, dev server)
-   ├─ GET  /                 → templates/index.html
-   ├─ GET  /api/status       → diagnostics (makes a live Groq call each time)
-   ├─ GET  /api/memory       → list memories
-   ├─ POST /api/environment  → lat/lon → Nominatim (reverse geocode) + Open-Meteo (weather)
-   └─ POST /api/chat         → routes by message prefix:
-         "remember …" / "remember that …" / "don't forget that …" / "keep in mind that …"
-                                → save to data/kyvon_memory.json (no LLM)
-         "web …"                → Groq model groq/compound (built-in web search)
-         anything else          → Groq openai/gpt-oss-120b with system prompt
-                                  (last 20 memories + environment text injected)
-Storage: data/kyvon_memory.json (last 100 entries), data/kyvon_errors.log
-```
-
-Notes:
-- The environment (location and weather) text is built in the browser and sent with each chat request. The server trusts it and puts it into the prompt.
-- Routing is by string prefix, not by LLM intent detection or tool calling.
-- Every chat is **stateless**. Only the current message is sent to the model, with no conversation history, so it cannot handle follow-up questions.
-- Module-level global `memory` is shared across requests, with no locking.
+Details and the differences from the original design: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ("As built").
 
 ## Current functionality
 
 | Area | Status |
 |---|---|
-| Chat with LLM (Groq, `openai/gpt-oss-120b`) | Implemented |
-| Persona/system prompt | Implemented |
-| Memory: save by "remember …" and view via MEMORY button | Implemented (keyword-only) |
-| Memory: use in replies (last 20 injected in the prompt) | Implemented |
-| Web research (`web <query>` → `groq/compound`) | Implemented |
-| Location: browser geolocation, Nominatim reverse geocode | Implemented |
-| Weather: Open-Meteo (°F/mph) | Implemented |
-| Local time | Partial: uses the time string Open-Meteo returns, with no server clock |
-| Voice input (webkitSpeechRecognition) | Implemented (browser-dependent) |
-| Diagnostics button | Implemented |
-| Error logging to file | Implemented |
-| **Tasks** | **Not implemented** (`tasks.json` is an unused stray file) |
-| **Calendar** | **Not implemented** (no Google/Apple/CalDAV code) |
-| **Authentication** | **Not implemented** |
-| **Text-to-speech / spoken replies** | Not implemented |
-| **iPhone/iPad native client / Shortcuts bridge** | Not implemented |
-| Repair log (`REPAIR_LOG`, `"diagnosed": True`) | Vestigial: defined but never used |
+| Chat with Groq (`openai/gpt-oss-120b`), KYVON persona | Working |
+| Memory: `remember …`, `don't forget that …`, `keep in mind that …`; newest 20 in prompt; newest 100 kept | Working, stored in the database per user |
+| Import of the prototype's `kyvon_memory.json` | Working, idempotent, the JSON is never modified |
+| Web research (`web …` → `groq/compound`) | Working |
+| Location (browser GPS → Nominatim) and weather (Open-Meteo) | Working |
+| Voice input (browser speech recognition) | Working where the browser supports it |
+| Diagnostics (SYSTEM button) | Working; the deep check makes one model call |
+| Single-owner sign-in, per-device tokens, revocation, sign-out | Working |
+| Web client at `/` (same visual design, plus sign-in screen) | Working |
+| Gunicorn, Dockerfile, systemd unit example | Written; gunicorn verified locally, Docker not built locally |
+| CI (lint, format, tests, migration, JS syntax, Docker build, secret scan) | Written; **has not run on GitHub yet** (the branch has not been pushed) |
+| Conversation history | Not built (Phase 2; tables exist, unused) |
+| Advanced memory retrieval | Not built (Phase 3) |
+| Tools / function calling | Not built (Phase 4) |
+| Tasks, calendar | Not built (Phase 5) |
+| Agents, Hermes, Logseq | Not built (Phase 6+) |
+| Native iPhone/iPad app, PWA install | Not built (Phase 7) |
 
-## What works *(inferred from code; not executed)*
+## Verification performed (development machine)
 
-- The app should start when `GROQ_API_KEY` is set and the dependencies are installed. It creates `data/`.
-- Chat, memory, web search, and location/weather flows are coherent end to end between `app.js` and `app.py`.
-- Failures in the location and weather calls are caught and logged, and the UI degrades to "LOCATION ERROR/DENIED".
-- Front-end output goes through `escapeHtml`, so chat rendering is not an XSS vector.
-- The memory file loads defensively (a corrupt file yields an empty list).
+- `pytest`: 200 passed. `ruff check` and `ruff format --check`: clean.
+- The prototype's 32 characterization tests and the old-vs-new parity tests passed against both implementations before `app.py` was replaced.
+- Real migration run on a fresh database, owner created via the CLI, prototype-format memory file imported (2 entries, then 0 on re-import), JSON byte-identical afterwards.
+- Gunicorn served the app; unauthenticated and bad-token requests returned 401.
+- Web client exercised in a browser: sign-in, chat, memory save and view (cookie plus CSRF flow), diagnostics, sign-out returning to the sign-in screen. The model and weather were faked in that session.
+- No secrets found in the tracked files or git history (pattern scan). `.env`, `data/` and `*.db` are ignored.
 
-## What is broken or wrong
+**Not verified:** a real Groq call and real Nominatim/Open-Meteo calls from the new code (no API key or live network use during development), the Docker image build, CI on GitHub, the iPad/Safari experience, and anything on the VM.
 
-1. **Incomplete rename.** The page `<title>`, the header brand, and the server console banner still say "J.A.R.V.I.S.". The directory, repo name, and `tasks.json`/`data` naming are still "jarvis". The API key error message references "GitHub Codespaces".
-2. **Geolocation on iPad requires HTTPS.** iOS Safari blocks `navigator.geolocation` on plain `http://` non-localhost origins. Unless the app is served through HTTPS (for example the Codespaces forwarded URL), location will always fail. Voice input has the same secure-context limitation.
-3. **`/api/status` calls the paid/rate-limited Groq API on every page load and every SYSTEM click.** It also reports `online: false` if the Groq call fails, though the UI ignores that flag.
-4. **"Remember" handling has a bug.** `"remember "` matches first, so `"remember that X"` is stored as `"that X"`, and the later `remember that` / `keep in mind that` phrase list is only partially reachable. An empty payload falls through to the LLM.
-5. **No conversation history.** Each message is independent, so follow-ups like "what about tomorrow?" have no context.
-6. **`python-dotenv` is listed but never imported.** There is no `.env` loading, so `GROQ_API_KEY` must be exported in the shell environment or a Codespaces secret.
-7. **Unhandled input paths.** `data["message"].strip()` crashes with a 500 if `message` is not a string. `/api/environment` returns raw exception text to the client.
-8. **The `data/` folder is created relative to the current working directory**, so running the app from another directory creates a second memory store.
-9. **Prompt injection surface.** The client-supplied `environment` string is inserted into the system prompt unvalidated, and web results are returned unfiltered.
-10. **The system prompt promises "Access real local time information"**, but no dedicated clock or timezone source exists beyond the weather response.
+## Known issues and technical debt
 
-## What is incomplete
+1. **`remember that X` is saved as `that X`.** Preserved deliberately from the prototype; fix in Phase 3.
+2. **Each chat is stateless.** No conversation history until Phase 2.
+3. **The environment text is built in the browser and sent as-is** into the prompt. A signed-in user can put arbitrary text there. Phase 2 moves this to the server.
+4. **The sign-in throttle is per process and per address+username.** Behind the Cloudflare Tunnel all requests come from 127.0.0.1, so five failures lock that username for 15 minutes for everyone (including you). `set-password` or a restart clears it.
+5. **One gunicorn worker** by design (SQLite, in-memory throttle).
+6. **Some weather codes are missing** (56/57, 66/67, 77, 85/86) and show "Unknown conditions". Kept from the prototype.
+7. **Prototype memory timestamps** had no timezone; they are imported as UTC.
+8. **Secure cookies:** in production mode the web client only signs in over HTTPS. Plain-HTTP testing needs `KYVON_COOKIE_SECURE=false`.
+9. **No CORS and no PWA manifest/icons** yet. The API is same-origin only until the native app needs more.
+10. **Unused schema:** `conversations` and `messages` tables are created but not used until Phase 2.
+11. **Python 3.12+ required** (uses newer syntax). Ubuntu 24.04's default is 3.12.
+12. **Geolocation and voice** need HTTPS on iOS; the tunnel provides it.
+13. **Repository and folder names** still say `jarvis-assistant` (GitHub repo `temcwilliams/jarvis-assistant`, local folder). Renaming the GitHub repository is your decision; the code and UI say KYVON.
 
-- Task creation and management (the core README promise)
-- Calendar events/dates (the core README promise)
-- Any authentication or per-user data
-- Real intent understanding (tool/function calling instead of prefix keywords)
-- Persistent conversation history
-- A mobile/iPhone client, PWA manifest and icons, or an Apple Shortcuts integration
-- Deployment, process management, HTTPS
-- Tests
-- Real README (setup, run, configuration)
+## Dependencies
 
-## Technical debt
+- **Python:** Flask, SQLAlchemy 2, Alembic, Pydantic 2, Groq SDK, requests, python-dotenv, gunicorn. Dev: pytest, Ruff.
+- **External services:** Groq API (needs `GROQ_API_KEY`), OpenStreetMap Nominatim, Open-Meteo (no key).
+- **Runtime:** Python 3.12, SQLite. Deployment: systemd and Cloudflare Tunnel on the VM.
 
-- All backend logic is in one 657-line file, with no blueprints or modules.
-- Heavy vertical whitespace and duplicated boilerplate (JSON responses, memory-saved responses).
-- Unpinned dependencies; `requirements.txt` has no versions and no trailing newline.
-- Flask dev server bound to `0.0.0.0` with no auth. Anyone who can reach the port can use your Groq quota and read your memories.
-- `debug=False` is correct, but there is no production server (gunicorn/waitress).
-- Global mutable state (`memory`), and non-atomic JSON file writes that can corrupt on concurrent requests.
-- Data is stored as flat JSON files. That is fine for now but will not scale to tasks, calendar, and users.
-- No `.gitignore`: `data/` (personal memories and error logs), `__pycache__`, and any future `.env` could be committed accidentally.
-- Weather-code map is rebuilt inside the function on every call and is missing several codes (56/57, 66/67, 77, 85/86).
-- No request timeouts or retries on Groq calls; no rate limiting.
-- Stray files: `tasks.json`, the unused `REPAIR_LOG`, and the unused `python-dotenv`.
-- The front end uses inline `onclick` handlers, has no framework or build step, and does not sanitize markdown (the model's output is shown as plain text, so markdown formatting is not rendered).
+## Configuration
 
-## Important dependencies
+Environment variables or `.env` (never committed); see [.env.example](.env.example). Required: `GROQ_API_KEY`. Everything else has a default.
 
-- **Python:** Flask, groq (SDK), requests (python-dotenv is declared but unused).
-- **External services:**
-  - Groq API, models `openai/gpt-oss-120b` and `groq/compound` (needs `GROQ_API_KEY`).
-  - OpenStreetMap Nominatim (reverse geocoding; usage policy requires a valid User-Agent and light use).
-  - Open-Meteo (free, no key).
-- **Browser APIs:** Geolocation, webkitSpeechRecognition. Both need a secure context on iOS.
+## Deployment
 
-## Configuration / secrets
+Target: the existing Ubuntu 24.04 VM at `/home/traxc93/kyvon-assistant`, systemd `kyvon.service`, port 8080, Cloudflare Tunnel. Procedure and rollback: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). The VM has not been inspected or modified, and its Git remote has not been verified.
 
-The only configuration is the environment variable `GROQ_API_KEY`. The app refuses to start without it. No `.env` files or committed secrets were found in the repository or its history (secret values were not read or printed at any point).
+## Recommended next steps
 
-## Deployment setup
-
-There is **no deployment configuration in the repo**. Clues (the "GitHub Codespaces secret" error text, port 8080, `0.0.0.0` binding) suggest it is run **manually inside a GitHub Codespace** with `python app.py` and accessed through the Codespaces forwarded port URL. This is *(inferred)*, so please confirm. Consequences: the app only runs while the Codespace is running, and the URL and visibility settings of the forwarded port control who can reach it.
-
-To run locally:
-```bash
-pip install -r requirements.txt
-export GROQ_API_KEY=...   # set in your shell, not committed
-python app.py             # http://localhost:8080
-```
-
-## iPhone / iPad client
-
-There is no native client. The iPad connects by **opening the Flask app's URL in Safari**. The page has `apple-mobile-web-app-capable` and a viewport tag, so it can be added to the Home Screen, but there is no manifest, icon, service worker, or offline behavior. The location error text explicitly refers to "your iPad browser settings". The iPhone is not specifically addressed (the CSS has one `max-width: 600px` breakpoint). There is no Apple Shortcuts bridge; the system prompt only mentions that one would be required.
-
----
-
-## Recommended development sequence
-
-1. **Housekeeping** (small, safe): add `.gitignore` (`data/`, `.env`, `__pycache__`), finish the KYVON rename (title, brand, banner, README), delete `tasks.json`, write a real README, pin dependency versions, and use `python-dotenv` or remove it.
-2. **Decide deployment target and get HTTPS working**: this blocks reliable iPad location and voice, and makes the app reachable when your Codespace is off. Options: a small VPS/Fly.io/Render, or a home server with Tailscale. Use gunicorn/waitress.
-3. **Add authentication** before adding personal data (tasks, calendar). A single-user login or token is enough to start. Protect all `/api/*` routes.
-4. **Refactor the backend lightly**: split `app.py` into modules (config, memory, environment, ai, routes) and move persistence to SQLite. Do this before adding features so they don't pile into one file.
-5. **Conversation history and cleaner chat**: send the recent turns, render markdown, and make `/api/status` cheap (no LLM call).
-6. **Tasks**: CRUD API, UI panel, and storage in SQLite.
-7. **Replace prefix keywords with LLM tool/function calling** (remember, create task, search web, get weather), and keep the "never claim actions you didn't perform" rule by reporting real tool results.
-8. **Calendar**: choose a provider (Google Calendar OAuth vs. Apple/CalDAV), and store the OAuth tokens securely.
-9. **iPhone/iPad polish**: PWA manifest and icons, Home Screen install, spoken replies (speechSynthesis), and optionally Apple Shortcuts endpoints for device actions.
-10. **Tests and CI** for the routing, memory, and tool functions.
-
-## Questions to confirm
-
-1. Is it really run from GitHub Codespaces today, and how do you reach it from the iPad?
-2. Google Calendar or Apple Calendar?
-3. Is the app just for you (single user), or will others use it?
-4. Do you want a PWA, or a native iOS app later?
+1. Push the branch, confirm CI passes on GitHub, and open a pull request.
+2. Deploy Phase 1 to the VM using [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), and check it from the iPad.
+3. Then Phase 2 (conversation persistence, server-built environment, streaming) once you approve it. See [docs/ROADMAP.md](docs/ROADMAP.md).

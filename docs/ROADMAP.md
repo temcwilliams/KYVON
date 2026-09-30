@@ -1,12 +1,14 @@
 # KYVON — Roadmap
 
-Companion to [ARCHITECTURE.md](ARCHITECTURE.md). Each phase ends with a working app. Phases are sequential unless noted. Nothing here starts until you approve it.
+Companion to [ARCHITECTURE.md](ARCHITECTURE.md). Each phase ends with a working app. Phases are sequential unless noted. A phase starts only after you approve it.
+
+**Progress:** Phase 1 is implemented and awaiting your review. Phases 2-8 have not started.
 
 **Out of scope until you say otherwise:** changing the model provider, integrating Hermes, and building the native iOS app.
 
 ---
 
-## Phase 1 — Foundation
+## Phase 1 — Foundation  ✅ implemented (awaiting approval and VM deployment)
 
 **Goal:** a clean, safe base with no new user-visible features.
 
@@ -20,6 +22,7 @@ Companion to [ARCHITECTURE.md](ARCHITECTURE.md). Each phase ends with a working 
 - `/health` and a cheap `/status`, and legacy `/api/*` aliases kept
 - Dockerfile and gunicorn entry point
 
+**As built:** all items are done. Two intentional adjustments: the conversation tables exist as schema only (persistence is Phase 2), and no legacy `/api/*` aliases were kept because the web client moved to `/api/v1` in the same release. See the "As built" section of ARCHITECTURE.md.
 **Exit criteria:** the old chat, memory, web search and location/weather flows work on the new structure, tests pass in CI, no secrets are in the repo, and nothing is reachable without login.
 
 ## Phase 2 — Conversational Intelligence
@@ -113,9 +116,9 @@ Companion to [ARCHITECTURE.md](ARCHITECTURE.md). Each phase ends with a working 
 
 | Question | Needed by |
 |---|---|
-| Where will KYVON be hosted long term (Codespaces, Fly/Render, home server + Tailscale)? | Phase 1 |
-| Single user only, or eventually others? | Phase 1 |
-| Google Calendar or Apple/iCloud Calendar? | Phase 5 |
-| PWA only, or a native app later? | Phase 7 |
+| ~~Where will KYVON be hosted?~~ Decided: the existing Ubuntu VM with a Cloudflare Tunnel | done |
+| ~~Single user only?~~ Decided: single-owner now, multi-user later | done |
+| ~~Google or Apple calendar?~~ Decided: Google Calendar first | done |
+| ~~PWA or native?~~ Decided: PWA now, native iOS app later | done |
 | Logseq: which graph/setup, and local file access or API? | Phase 8 |
 | Hermes: what is it in your setup (model, agent framework, or service)? | Phase 6/8 |

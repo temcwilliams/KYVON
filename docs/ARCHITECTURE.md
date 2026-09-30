@@ -1,6 +1,6 @@
 # KYVON — Target Architecture
 
-Status: **proposal, awaiting approval.** No code has been changed. The starting point is described in [KYVON_STATUS.md](../KYVON_STATUS.md).
+Status: **approved; Phase 1 implemented.** Sections 1-15 are the approved design. The [As built](#as-built-end-of-phase-1) section at the end records what was actually implemented and where it differs. Current state: [KYVON_STATUS.md](../KYVON_STATUS.md).
 
 ## Guiding principles
 
@@ -218,11 +218,13 @@ class Tool:
 
 ## 13. Deployment strategy
 
-- **Now:** Codespaces or local dev with `flask run`. Add a `Dockerfile` and `docker-compose.yml` for parity.
-- **Production target (recommended):** a single small host (Fly.io, Render, or a home/VPS box behind Tailscale) running **gunicorn** in a container, with a persistent volume for `data/kyvon.db`, TLS at the platform edge, and daily DB backups. HTTPS is required for iPad geolocation and voice.
-- Migrations run on deploy (`alembic upgrade head`). Health checks use `/health`. Structured JSON logs.
-- Move to Postgres only when there is a real need (multi-user, concurrent workers, hosted DB).
-- Decision needed from you: where to host (see the open questions in the roadmap).
+**Decision (approved):** KYVON stays on the existing Ubuntu 24.04 VM (`/home/traxc93/kyvon-assistant`, systemd service `kyvon.service`, port 8080, Cloudflare Tunnel for HTTPS). No hosting migration.
+
+- The app is host-independent: it needs Python 3.12, a writable data directory, and environment variables. Nothing in the code refers to the VM.
+- Runtime: gunicorn (`wsgi:app`, one worker plus threads) started by systemd. Migrations run in `ExecStartPre`.
+- A `Dockerfile` and entrypoint are included so the same build can move to another host later, without rewriting anything.
+- Backups: `data/` (SQLite database, error log, legacy memory JSON) is the only state to back up.
+- Procedure and rollback: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## 14. Migration plan from the current prototype
 
@@ -265,3 +267,52 @@ See [ROADMAP.md](ROADMAP.md) for phase-by-phase scope, deliverables and exit cri
 | 5 | Tool calling | Native provider function calling through a registry, with confirmation for side effects |
 | 6 | Validation | pydantic schemas (also the source for OpenAPI) |
 | 7 | Hosting | Container with gunicorn on Fly.io/Render or a Tailscale-reachable box |
+
+## As built (end of Phase 1)
+
+Implemented as designed unless noted.
+
+**Structure**
+
+```
+app.py  wsgi.py  gunicorn.conf.py  Dockerfile  docker-entrypoint.sh  alembic.ini
+kyvon/
+  __init__.py            create_app() factory, Services container, security headers
+  config.py              typed Settings (env + optional .env)
+  db.py                  Base, UTC datetime type, engine/session, upgrade_database()
+  cli.py                 flask --app wsgi kyvon <db-upgrade|create-user|set-password|revoke-tokens|import-memories>
+  api/                   deps.py (session, auth guard, JSON parsing), errors.py, schemas.py,
+                         v1/routes.py, v1/auth.py
+  services/              chat, memory, memory_import, auth, environment, status
+  llm/                   base (LLMClient protocol), groq_client, prompts
+  integrations/          geocode_nominatim, weather_openmeteo
+  models/                user (User, ApiToken), memory, conversation (Conversation, Message)
+  utils/                 error_log, rate_limit
+migrations/versions/0001_initial_schema.py
+web/                     index.html, css/, js/ (api, auth, chat, env, memory, diagnostics, voice, ui, main)
+tests/
+```
+
+**Endpoints implemented:** `GET /health`, `GET /status[?deep=1]`, `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`, `GET /auth/tokens`, `DELETE /auth/tokens/<id>`, `POST /chat`, `GET /memories`, `POST /environment`. The remaining endpoints in section 3 belong to later phases.
+
+**Differences from the design**
+
+| Design | As built |
+|---|---|
+| One route file per area | `routes.py` (chat, memories, environment, status) and `auth.py`; split when they grow |
+| `memories.importance` column | Omitted until Phase 3 needs it |
+| `messages` tool fields | Omitted until Phase 4; `conversations` / `messages` exist as schema only, unused until Phase 2 |
+| `extensions.py` | Not needed; engine and sessions are created in the factory |
+| `tool_runs`, `calendar_*`, `agent_runs` tables | Later phases |
+| `KYVON_ENCRYPTION_KEY`, `SECRET_KEY` | Not needed yet (tokens are hashed, not encrypted); will return with Google Calendar |
+| Legacy `/api/*` aliases | Not created. The web client moved to `/api/v1` in the same release |
+| `web/` served by Flask | As designed (Flask serves `web/` at `/` and `/static`) |
+| `flask kyvon create-user` | As designed, plus `set-password`, `revoke-tokens`, `import-memories`, `db-upgrade` |
+| Status check | `GET /status` is cheap; `?deep=1` makes the one model call the prototype made on every check |
+| Error envelope | As designed. Prototype's `"diagnosed": true` field was dropped |
+
+**Behavior changes from the prototype (deliberate):** invalid input returns 400 (was 500); messages are limited to 10,000 characters; the SYSTEM button runs the deep status check while the automatic startup check does not call the model; the CSS/HTML no longer says J.A.R.V.I.S.; everything requires sign-in. The `remember that X` quirk (stored as `that X`) is **preserved** and listed as a known issue.
+
+**Auth as built:** scrypt password hashes, `kyv_`-prefixed 256-bit device tokens stored as SHA-256, 30-day expiry (configurable), bearer header or HttpOnly `SameSite=Strict` cookie with CSRF double-submit for cookie requests, and a failed-login throttle (5 failures per 15 minutes per address+username, in memory).
+
+**Testing as built:** pytest with a `FakeLLM` and injected HTTP fakes, so no test touches the network; migration/model drift check; CI runs lint, format check, tests, a fresh-database migration, a JavaScript syntax check, a Docker build, and a secret scan.
