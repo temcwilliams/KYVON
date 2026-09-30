@@ -71,7 +71,7 @@ This document is the result of the Phase 15 review. Each claim below is backed b
 
 ### Command execution and filesystem
 - No `subprocess`, `os.system`, `eval`, `exec`, `pickle` or similar anywhere in the package
-  (a test greps for them). Only two modules write files: the error log and the Logseq sandbox.
+  (a test greps for them). Only three modules write files: the error log, the Logseq sandbox, and the administrator's `backup`/`restore` command (not reachable from the API or by the model).
 - Logseq: only `pages/` and `journals/` Markdown files; validated names; symlinks are never followed;
   sizes bounded; atomic writes; **no delete operation**; overwrites keep a backup.
 

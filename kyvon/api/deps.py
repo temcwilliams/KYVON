@@ -111,7 +111,6 @@ def login_required(view):
         g.user = token.user
         user_id_var.set(token.user.id)
         enforce_rate("api", services().settings.rate_limit_api_per_minute)
-        g.auth_via = via
         return view(*args, **kwargs)
 
     return wrapper

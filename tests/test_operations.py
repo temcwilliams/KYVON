@@ -10,6 +10,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from contextlib import closing
 from dataclasses import replace
 from pathlib import Path
 
@@ -39,7 +40,7 @@ def cli(app, *args, **kw):
 
 
 def db_rows(path):
-    with sqlite3.connect(path) as db:
+    with closing(sqlite3.connect(path)) as db:
         return db.execute("SELECT username FROM users").fetchall()
 
 
@@ -135,8 +136,9 @@ def test_restore_rejects_bad_files(migrated, tmp_path):
     junk.write_text("this is not a database")
     assert "healthy SQLite" in cli(migrated, "restore", str(junk), "--yes").output
     foreign = tmp_path / "foreign.db"
-    with sqlite3.connect(foreign) as db:
+    with closing(sqlite3.connect(foreign)) as db:
         db.execute("CREATE TABLE something (id integer)")
+        db.commit()
     assert "not a KYVON database" in cli(migrated, "restore", str(foreign), "--yes").output
 
 

@@ -244,3 +244,29 @@ def test_error_log_never_raises(tmp_path):
 
 
 # ------------------------------------------------------------ parity with app.py
+
+
+# ------------------------------------------------------------ forward geocoding (used by the weather tool)
+
+
+def test_forward_geocode_request_and_result():
+    get = RecordingGet(
+        FakeResponse([{"lat": "48.85", "lon": "2.35", "display_name": "Paris, France"}])
+    )
+    found = geocode_nominatim.forward_geocode("Paris", http_get=get)
+    assert found == {"latitude": 48.85, "longitude": 2.35, "display": "Paris, France"}
+    ((url, kwargs),) = get.calls
+    assert url == "https://nominatim.openstreetmap.org/search"
+    assert kwargs["params"] == {"q": "Paris", "format": "json", "limit": 1}
+    assert (
+        kwargs["headers"] == {"User-Agent": "KYVON-Personal-Assistant"}
+        and kwargs["allow_redirects"] is False
+    )
+
+
+def test_forward_geocode_no_match_and_errors():
+    assert (
+        geocode_nominatim.forward_geocode("zzzz", http_get=RecordingGet(FakeResponse([]))) is None
+    )
+    with pytest.raises(requests.HTTPError):
+        geocode_nominatim.forward_geocode("x", http_get=RecordingGet(FakeResponse([], status=500)))

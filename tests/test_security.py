@@ -365,6 +365,7 @@ def test_file_writes_are_limited_to_known_modules():
     assert set(writers) == {
         "utils/error_log.py",  # the error log file
         "integrations/logseq.py",  # the sandboxed notes folder
+        "cli.py",  # `kyvon backup` / `restore`: run by the administrator, unreachable from the API
     }
 
 

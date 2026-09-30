@@ -43,7 +43,6 @@ def memory(session, user, clock):
 
 def test_empty(memory):
     assert memory.all() == [] and len(memory) == 0
-    assert memory.prompt_text() == "No saved memories."
 
 
 def test_add_and_list(memory):
@@ -68,13 +67,6 @@ def test_overflow_is_soft_deleted(memory, session):
     assert session.query(Memory).filter(Memory.deleted_at.is_not(None)).count() == 1
 
 
-def test_prompt_text_last_20(memory):
-    for i in range(25):
-        memory.add(f"item {i}")
-    lines = memory.prompt_text().splitlines()
-    assert len(lines) == 20 and lines[0] == "- item 5" and lines[-1] == "- item 24"
-
-
 def test_scoped_to_user(session, user, clock):
     other = User(username="other", password_hash="x")
     session.add(other)
@@ -82,7 +74,6 @@ def test_scoped_to_user(session, user, clock):
     MemoryService(session, user.id, now=clock).add("mine")
     theirs = MemoryService(session, other.id, now=clock)
     assert theirs.all() == [] and len(theirs) == 0
-    assert theirs.prompt_text() == "No saved memories."
 
 
 def test_same_timestamp_ordering_stable(session, user):

@@ -37,7 +37,6 @@ __all__ = [
 ]
 
 MAX_MEMORIES = 100  # default cap; the app passes Settings.memory_max
-NO_MEMORIES_TEXT = "No saved memories."
 
 
 @dataclass
@@ -258,8 +257,3 @@ class MemoryService:
             )
         header = f"Here is what I remember about {topic}:" if topic else "Here is what I remember:"
         return header + "\n" + "\n".join(f"• {m.content}" for m in hits)
-
-    def prompt_text(self) -> str:
-        """The newest memories, unranked (kept for callers that have no query)."""
-        rows = self._live_rows()[-20:]
-        return "\n".join(f"- {m.content}" for m in rows) if rows else NO_MEMORIES_TEXT

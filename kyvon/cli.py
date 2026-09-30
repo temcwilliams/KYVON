@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import sqlite3
 import sys
+from contextlib import closing
 from datetime import datetime
 from pathlib import Path
 
@@ -135,7 +136,7 @@ def _sqlite_path(url: str) -> Path:
 
 def _integrity_ok(path: Path) -> bool:
     try:
-        with sqlite3.connect(f"file:{path}?mode=ro", uri=True) as db:
+        with closing(sqlite3.connect(f"file:{path}?mode=ro", uri=True)) as db:
             return db.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
     except sqlite3.Error:
         return False
@@ -155,7 +156,7 @@ def backup(dest: Path | None, keep: int):
     target = folder / f"kyvon-{datetime.now():%Y%m%d-%H%M%S}.db"
 
     # SQLite's backup API copies a consistent snapshot even while KYVON is running.
-    with sqlite3.connect(source) as src, sqlite3.connect(target) as dst:
+    with closing(sqlite3.connect(source)) as src, closing(sqlite3.connect(target)) as dst:
         src.backup(dst)
     if not _integrity_ok(target):
         target.unlink(missing_ok=True)
@@ -182,12 +183,12 @@ def restore(file: Path, yes: bool):
         )
     if not _integrity_ok(file):
         raise click.ClickException("That file is not a healthy SQLite database.")
-    with sqlite3.connect(f"file:{file}?mode=ro", uri=True) as db:
+    with closing(sqlite3.connect(f"file:{file}?mode=ro", uri=True)) as db:
         if not db.execute("SELECT 1 FROM sqlite_master WHERE name = 'alembic_version'").fetchone():
             raise click.ClickException("That file is not a KYVON database (no migration table).")
     if target.exists():
         try:  # refuse while something else holds the database open
-            with sqlite3.connect(target, timeout=1) as live:
+            with closing(sqlite3.connect(target, timeout=1)) as live:
                 live.execute("BEGIN EXCLUSIVE")
                 live.rollback()
         except sqlite3.OperationalError as error:
@@ -195,11 +196,14 @@ def restore(file: Path, yes: bool):
                 "The database is in use. Stop the KYVON service first."
             ) from error
         safety = target.with_name(f"{target.name}.pre-restore-{datetime.now():%Y%m%d-%H%M%S}")
-        with sqlite3.connect(target) as src, sqlite3.connect(safety) as dst:
+        with closing(sqlite3.connect(target)) as src, closing(sqlite3.connect(safety)) as dst:
             src.backup(dst)
         click.echo(f"Current database saved as {safety}")
     staged = target.with_name(target.name + ".restoring")
-    with sqlite3.connect(f"file:{file}?mode=ro", uri=True) as src, sqlite3.connect(staged) as dst:
+    with (
+        closing(sqlite3.connect(f"file:{file}?mode=ro", uri=True)) as src,
+        closing(sqlite3.connect(staged)) as dst,
+    ):
         src.backup(dst)
     for suffix in ("-wal", "-shm"):
         Path(str(target) + suffix).unlink(missing_ok=True)
