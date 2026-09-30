@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import requests
-from flask import Flask, request, send_from_directory
+from flask import Flask, Response, request, send_from_directory
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -24,8 +24,10 @@ from kyvon.integrations.hermes import build_hermes
 from kyvon.integrations.logseq import build_graph
 from kyvon.llm.base import LLMClient
 from kyvon.llm.groq_client import GroqClient
+from kyvon.pwa import render_service_worker
 from kyvon.services.environment_context import EnvironmentCache
 from kyvon.services.environment_service import EnvironmentService
+from kyvon.services.push_service import build_push
 from kyvon.tools import build_registry
 from kyvon.tools.executor import ToolExecutor
 from kyvon.tools.registry import ToolRegistry
@@ -89,6 +91,7 @@ def create_app(
         http=requests.Session(),
     )
     container.hermes = build_hermes(settings, container.http)
+    container.push = build_push(settings, container.http)
     container.logseq = build_graph(settings.logseq_dir)
     container.executor = ToolExecutor(container.registry, container)
     container.agent_runner = AgentRunner(container)
@@ -123,6 +126,22 @@ def create_app(
     def index():
         return send_from_directory(WEB_DIR, "index.html")
 
+    @app.get("/manifest.webmanifest")
+    def manifest():
+        response = send_from_directory(
+            WEB_DIR, "manifest.webmanifest", mimetype="application/manifest+json"
+        )
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+    @app.get("/sw.js")
+    def service_worker():
+        """Served from the root so its scope covers the whole app; never cached by the browser."""
+        response = Response(render_service_worker(), mimetype="text/javascript")
+        response.headers["Cache-Control"] = "no-cache"
+        response.headers["Service-Worker-Allowed"] = "/"
+        return response
+
     from kyvon.api.v1.agents import bp as agents_bp
     from kyvon.api.v1.auth import bp as auth_bp
     from kyvon.api.v1.automations import bp as automations_bp
@@ -132,6 +151,7 @@ def create_app(
     from kyvon.api.v1.integrations import bp as integrations_bp
     from kyvon.api.v1.logseq import bp as logseq_bp
     from kyvon.api.v1.memories import bp as memories_bp
+    from kyvon.api.v1.push import bp as push_bp
     from kyvon.api.v1.routes import bp as v1_bp
     from kyvon.api.v1.settings import bp as settings_bp
     from kyvon.api.v1.tasks import bp as tasks_bp
@@ -151,5 +171,6 @@ def create_app(
     app.register_blueprint(logseq_bp)
     app.register_blueprint(automations_bp)
     app.register_blueprint(settings_bp)
+    app.register_blueprint(push_bp)
     app.cli.add_command(cli)
     return app

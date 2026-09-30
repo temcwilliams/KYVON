@@ -11,7 +11,9 @@ import { startPolling, stopPolling } from "./notifications.js";
 import { handleOAuthReturn } from "./calendar.js";
 import { api } from "./api.js";
 import { runDiagnostics } from "./diagnostics.js";
+import { initConnection } from "./connection.js";
 import { requestLocation } from "./env.js";
+import { registerServiceWorker } from "./pwa.js";
 import { openMemoryPanel } from "./memory.js";
 import { initDrawer } from "./panels.js";
 import { state } from "./state.js";
@@ -37,7 +39,12 @@ function start() {
     if (started) return;
     started = true;
 
-    restoreLastConversation();
+    if (new URLSearchParams(window.location.search).get("new") === "1") {
+        newConversation();
+        window.history.replaceState({}, "", window.location.pathname);
+    } else {
+        restoreLastConversation();
+    }
     reportTimezone();
     startPolling();
     handleOAuthReturn();
@@ -77,6 +84,8 @@ function bindControls() {
 }
 
 async function boot() {
+    registerServiceWorker();
+    initConnection();
     bindControls();
     initDrawer();
     initLogin(start);

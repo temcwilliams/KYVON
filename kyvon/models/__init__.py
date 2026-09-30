@@ -5,6 +5,7 @@ from kyvon.models.automation import Automation, AutomationRun, Notification
 from kyvon.models.calendar import CalendarAccount, OAuthState
 from kyvon.models.conversation import Conversation, Message
 from kyvon.models.memory import Memory
+from kyvon.models.push import PushSubscription
 from kyvon.models.task import Task
 from kyvon.models.tool_run import ToolRun
 from kyvon.models.user import ApiToken, User
@@ -20,6 +21,7 @@ __all__ = [
     "Message",
     "Notification",
     "OAuthState",
+    "PushSubscription",
     "Task",
     "ToolRun",
     "User",

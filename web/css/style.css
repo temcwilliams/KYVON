@@ -8,6 +8,7 @@ body {
     padding: 0;
     width: 100%;
     height: 100%;
+    height: 100dvh;
     overflow: hidden;
 
     font-family:
@@ -374,7 +375,8 @@ footer button {
     left: 8px;
 }
 
-.menu-button {
+.menu-button,
+.icon-button {
     font-size: 18px;
     padding: 6px 12px;
 }
@@ -776,4 +778,135 @@ textarea {
 .field textarea,
 .field input[type="text"] {
     width: 100%;
+}
+
+/* ---- connection, safe areas, and layouts for phone / tablet / desktop ---- */
+
+.offline-banner {
+    padding: 8px 12px;
+    margin-bottom: 8px;
+
+    border: 1px solid #b59a3a;
+    border-radius: 6px;
+
+    background: rgba(181, 154, 58, 0.12);
+
+    font-size: 12px;
+    text-align: center;
+}
+
+.offline-banner[hidden] {
+    display: none;
+}
+
+.kyvon {
+    padding-top: max(25px, env(safe-area-inset-top));
+    padding-bottom: max(25px, env(safe-area-inset-bottom));
+    padding-left: max(25px, env(safe-area-inset-left));
+    padding-right: max(25px, env(safe-area-inset-right));
+    min-height: 0;
+}
+
+.conversation {
+    min-height: 0;
+}
+
+/* Text that carries meaning must stay readable (WCAG AA on the dark background). */
+.item-meta,
+.empty,
+.listening,
+.message-note {
+    opacity: 0.8;
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Phones (portrait): compact header and core so the conversation gets the room. */
+@media (max-width: 599px) {
+    .kyvon {
+        padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    }
+
+    .core {
+        width: 160px;
+        height: 160px;
+        margin: 12px auto 8px;
+        transform: none;
+    }
+
+    .ring-one { width: 150px; height: 150px; }
+    .ring-two { width: 120px; height: 120px; }
+    .ring-three { width: 92px; height: 92px; }
+    .core-center { width: 68px; height: 68px; }
+
+    input,
+    select,
+    textarea {
+        font-size: 16px; /* prevents iOS from zooming into the field */
+    }
+
+    footer {
+        flex-wrap: wrap;
+    }
+}
+
+/* Short screens (phones in landscape, small windows): drop the decorative core. */
+@media (max-height: 640px) {
+    .core {
+        display: none;
+    }
+}
+
+/* Tablets: comfortable reading width, larger touch targets. */
+@media (min-width: 600px) and (max-width: 999px) {
+    .kyvon {
+        width: min(100%, 820px);
+    }
+
+    .message {
+        font-size: 17px;
+    }
+}
+
+/* Touch devices: 44px minimum touch targets. */
+@media (pointer: coarse) {
+    button,
+    select,
+    input[type="checkbox"] {
+        min-height: 44px;
+    }
+
+    .mini {
+        min-height: 36px;
+    }
+
+    input[type="checkbox"] {
+        min-width: 24px;
+    }
+}
+
+/* Desktop: the menu stays open beside the conversation (see the 1000px rule above). */
+@media (min-width: 1400px) {
+    .kyvon {
+        width: min(100%, 1100px);
+    }
+}
+
+@media (prefers-contrast: more) {
+    .item,
+    input,
+    button,
+    select {
+        border-color: #fff;
+    }
+}
+
+/* Installed app: no browser chrome, so respect the notch. */
+@media (display-mode: standalone) {
+    body {
+        overscroll-behavior: none;
+    }
 }

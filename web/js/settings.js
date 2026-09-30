@@ -3,6 +3,7 @@
 import { api } from "./api.js";
 import { h } from "./dom.js";
 import { registerPanel } from "./panels.js";
+import { canPromptInstall, disablePush, enablePush, isIOS, isStandalone, onInstallStateChange, promptInstall, pushStatus } from "./pwa.js";
 
 // Tell the server which time zone this device is in (used unless the user sets one).
 export async function reportTimezone() {
@@ -67,6 +68,50 @@ function toggle(label, key, value, disabled = false) {
     );
 }
 
+// "This device": install as an app and notifications.
+function devicePanel() {
+    const box = h("div", { class: "stack" });
+    const message = h("p", { class: "note", role: "status" });
+
+    async function render() {
+        const rows = [];
+        if (isStandalone()) {
+            rows.push(h("p", { class: "item-meta" }, "KYVON is installed on this device."));
+        } else if (canPromptInstall()) {
+            rows.push(h("button", { onclick: async () => { await promptInstall(); render(); }, text: "Install KYVON as an app" }));
+        } else if (isIOS()) {
+            rows.push(h("p", { class: "item-meta" }, "To install: tap the Share button in Safari, then “Add to Home Screen”."));
+        } else {
+            rows.push(h("p", { class: "item-meta" }, "To install, use your browser's “Install app” option (usually in the address bar or menu)."));
+        }
+
+        const push = await pushStatus();
+        if (!push.supported) {
+            rows.push(h("p", { class: "item-meta" }, isIOS() && !isStandalone() ? "Notifications on iPhone and iPad need KYVON installed to the Home Screen first." : "This browser doesn't support push notifications."));
+        } else if (!push.configured) {
+            rows.push(h("p", { class: "item-meta" }, "Push notifications aren't set up on this server (reminders still appear in your Inbox)."));
+        } else {
+            rows.push(h("label", { class: "check field" }, h("input", {
+                type: "checkbox",
+                checked: push.subscribed,
+                onchange: async event => {
+                    try {
+                        if (event.target.checked) await enablePush(); else await disablePush();
+                        message.textContent = event.target.checked ? "Notifications on for this device." : "Notifications off for this device.";
+                    } catch (error) {
+                        message.textContent = error.message;
+                        event.target.checked = !event.target.checked;
+                    }
+                },
+            }), " Notify me on this device"));
+        }
+        box.replaceChildren(...rows, message);
+    }
+    onInstallStateChange(render);
+    render();
+    return box;
+}
+
 registerPanel({
     id: "settings",
     label: "Settings",
@@ -103,6 +148,8 @@ registerPanel({
                 toggle("Let KYVON propose things to remember (you approve each one)", "allow_memory_proposals", s.allow_memory_proposals),
                 toggle("Read replies aloud", "voice_replies", s.voice_replies)
             ),
+            h("h3", { class: "section" }, "This device"),
+            devicePanel(),
             h("h3", { class: "section" }, "Connected services"),
             h(
                 "div",

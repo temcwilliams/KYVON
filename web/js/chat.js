@@ -3,7 +3,8 @@
 import { ApiError, api, stream } from "./api.js";
 import { addMessage, clearConversation, say, setListening, setStatus } from "./ui.js";
 import { loadPending, showPending } from "./confirmations.js";
-import { emit, state } from "./state.js";
+import { reportNetworkFailure } from "./connection.js";
+import { emit, on, state } from "./state.js";
 
 const input = document.getElementById("messageInput");
 const sendButton = document.getElementById("sendButton");
@@ -125,6 +126,10 @@ export async function sendMessage() {
     } catch (error) {
         if (error.name === "AbortError") {
             if (reply) reply.markInterrupted();
+        } else if (error instanceof ApiError && error.status === 0) {
+            reportNetworkFailure();
+            if (reply) reply.markInterrupted();
+            say("The connection dropped. I'll reload this conversation when you're back online, so you can see what was saved.");
         } else if (!(error instanceof ApiError && error.status === 401)) {
             say("I encountered an error: " + error.message);
         }
@@ -137,3 +142,11 @@ export async function sendMessage() {
         if (failed) input.focus();
     }
 }
+
+
+// After a dropped connection, show what the server actually saved (a partial reply is kept).
+on("connection:restored", () => {
+    if (state.conversationId && !state.busy) {
+        openConversation(state.conversationId).catch(() => {});
+    }
+});

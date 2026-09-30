@@ -128,3 +128,16 @@ class SettingsUpdate(BaseModel):
     calendar_enabled: bool | None = None
     logseq_enabled: bool | None = None
     hermes_enabled: bool | None = None
+
+
+class PushSubscribe(_Strict):
+    endpoint: str = Field(min_length=10, max_length=1000)
+    keys: dict
+
+
+class PushUnsubscribe(_Strict):
+    endpoint: str = Field(min_length=1, max_length=1000)
+
+
+class ApnsRegister(_Strict):
+    device_token: str = Field(min_length=1, max_length=300)

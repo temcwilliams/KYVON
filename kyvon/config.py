@@ -64,6 +64,9 @@ _STRINGS: dict[str, tuple[str, str]] = {
     "hermes_api_key": ("KYVON_HERMES_API_KEY", ""),
     "hermes_model": ("KYVON_HERMES_MODEL", "hermes"),
     "logseq_dir": ("KYVON_LOGSEQ_DIR", ""),
+    "vapid_public_key": ("KYVON_VAPID_PUBLIC_KEY", ""),
+    "vapid_private_key": ("KYVON_VAPID_PRIVATE_KEY", ""),
+    "vapid_subject": ("KYVON_VAPID_SUBJECT", ""),
 }
 
 _TRUE = ("1", "true", "yes", "on")
@@ -116,6 +119,11 @@ class Settings:
     hermes_allow_remote: bool = False
     hermes_timeout_seconds: int = 90
 
+    # Web Push (optional): VAPID keys from `flask --app wsgi kyvon generate-vapid-keys`
+    vapid_public_key: str = ""
+    vapid_private_key: str = ""
+    vapid_subject: str = ""  # mailto: or https: contact, required by push services
+
     # Logseq (Phase 8, optional): path of a Logseq graph folder
     logseq_dir: str = ""
 
@@ -151,6 +159,10 @@ class Settings:
     def db_url(self) -> str:
         """SQLAlchemy URL; defaults to SQLite at <data_dir>/kyvon.db."""
         return self.database_url or f"sqlite:///{self.data_dir / 'kyvon.db'}"
+
+    @property
+    def push_configured(self) -> bool:
+        return bool(self.vapid_public_key and self.vapid_private_key and self.vapid_subject)
 
     @property
     def calendar_configured(self) -> bool:

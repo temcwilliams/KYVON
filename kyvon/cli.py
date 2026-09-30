@@ -11,6 +11,7 @@ from flask.cli import AppGroup
 from sqlalchemy import select
 
 from kyvon.db import upgrade_database
+from kyvon.integrations.webpush import generate_vapid_keys
 from kyvon.models import User
 from kyvon.services import auth_service
 from kyvon.services.memory_import import MemoryImportError, import_json_memories
@@ -102,3 +103,12 @@ def import_memories(file_: Path | None):
 def generate_key_command():
     """Print a new KYVON_ENCRYPTION_KEY (used to encrypt stored OAuth tokens)."""
     click.echo(generate_key())
+
+
+@cli.command("generate-vapid-keys")
+def generate_vapid_keys_command():
+    """Print a VAPID key pair for Web Push (set the two values in your environment)."""
+    public, private = generate_vapid_keys()
+    click.echo(f"KYVON_VAPID_PUBLIC_KEY={public}")
+    click.echo(f"KYVON_VAPID_PRIVATE_KEY={private}")
+    click.echo("KYVON_VAPID_SUBJECT=mailto:you@example.com")
