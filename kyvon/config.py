@@ -98,6 +98,8 @@ _STRINGS: dict[str, tuple[str, str]] = {
     "stripe_webhook_secret": ("STRIPE_WEBHOOK_SECRET", ""),
     "stripe_price_id": ("STRIPE_PRICE_ID", ""),
     "price_label": ("KYVON_PRICE_LABEL", ""),
+    "privacy_url": ("KYVON_PRIVACY_URL", ""),
+    "terms_url": ("KYVON_TERMS_URL", ""),
 }
 
 _TRUE = ("1", "true", "yes", "on")
@@ -197,6 +199,8 @@ class Settings:
     stripe_webhook_secret: str = ""
     stripe_price_id: str = ""
     price_label: str = ""  # shown next to the upgrade button, e.g. "$9 / month"
+    privacy_url: str = ""  # public pages linked from the sign-up form
+    terms_url: str = ""
     quota_free_messages: int = 30
     quota_free_tokens: int = 60_000
     quota_free_voice: int = 10

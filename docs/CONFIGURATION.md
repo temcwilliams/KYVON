@@ -43,6 +43,7 @@ directory; real environment variables win over `.env`. **Never commit real value
 | `KYVON_MODE` | `personal` | `personal` (one owner, the default) or `hosted` (many users with email accounts, quotas and billing). |
 | `KYVON_MODEL` | `openai/gpt-oss-120b` | Chat model (Groq). |
 | `KYVON_PRICE_LABEL` | `(none)` | Text shown beside the upgrade button, such as `$9 / month`. |
+| `KYVON_PRIVACY_URL` | `(none)` | Public URL of the privacy policy, linked from the sign-up form (hosted mode). |
 | `KYVON_PROXY_HOPS` | `0` | Number of trusted reverse proxies in front of the app, so the real client IP is used for limits. |
 | `KYVON_PUBLIC_URL` | `http://localhost:8080` | How browsers reach KYVON (used for the Google OAuth redirect and trusted origin). |
 | `KYVON_QUOTA_FREE_MESSAGES` | `30` | Hosted: chat messages per month on the free plan. |
@@ -66,6 +67,7 @@ directory; real environment variables win over `.env`. **Never commit real value
 | `KYVON_SMTP_USER` | `(none)` | SMTP username. |
 | `KYVON_STT_MODEL` | `whisper-large-v3-turbo` | Speech-to-text model (Groq Whisper). |
 | `KYVON_SUMMARY_TRIGGER_MESSAGES` | `30` | Whole number, 6 to 1000. |
+| `KYVON_TERMS_URL` | `(none)` | Public URL of the terms of use, linked from the sign-up form (hosted mode). |
 | `KYVON_TERMS_VERSION` | `1` | Version label recorded when someone accepts the terms. Bump it when the terms change. |
 | `KYVON_TOKEN_TTL_DAYS` | `30` | Whole number, 1 to 3650. |
 | `KYVON_TOOL_MAX_ITERATIONS` | `5` | Whole number, 1 to 20. |
