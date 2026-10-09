@@ -68,7 +68,7 @@ jobs:
   ios-ipa:
     # An UNSIGNED app file for sideloading from Windows (Sideloadly / AltStore re-sign it with a free
     # Apple ID; it then expires after 7 days). Push entitlement is left out: free accounts can't sign it.
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - name: Install XcodeGen
