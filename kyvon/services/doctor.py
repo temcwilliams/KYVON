@@ -101,6 +101,9 @@ def run_checks(
     except Exception as error:
         add(FAIL, f"database check failed ({type(error).__name__})")
 
+    if settings.hosted:
+        _hosted_checks(settings, add)
+
     # Optional integrations: half-configured is a mistake worth flagging.
     google = [
         bool(settings.google_client_id),
@@ -139,3 +142,32 @@ def run_checks(
     if any(push) and not all(push):
         add(WARN, "Web Push is partly configured (needs both VAPID keys and KYVON_VAPID_SUBJECT)")
     return checks
+
+
+def _hosted_checks(settings, add) -> None:
+    """Extra checks for KYVON_MODE=hosted (a public, multi-user service)."""
+    add(OK, "hosted mode: many accounts, quotas and billing apply")
+    production = settings.env == "production"
+    if settings.db_url.startswith("sqlite"):
+        add(
+            WARN if production else OK,
+            "database is SQLite: fine for a trial, use Postgres (DATABASE_URL) for a public service",
+        )
+    else:
+        add(OK, "database is not SQLite")
+    if settings.email_configured:
+        add(OK, "outgoing email is configured")
+    else:
+        add(
+            FAIL if production else WARN,
+            "no outgoing email (KYVON_SMTP_HOST and KYVON_EMAIL_FROM): verification and reset emails cannot be sent",
+        )
+    if not settings.public_url.startswith("https://") and production:
+        add(FAIL, "KYVON_PUBLIC_URL must be an https:// address in production")
+    if settings.signup_open and not settings.email_configured and production:
+        add(FAIL, "sign-up is open but email is not configured")
+    if production and not settings.proxy_hops:
+        add(
+            WARN,
+            "KYVON_PROXY_HOPS is 0: behind a proxy every visitor looks like one IP, so rate limits are shared",
+        )

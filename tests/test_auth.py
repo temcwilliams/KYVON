@@ -72,7 +72,9 @@ def test_login_returns_token_and_it_works(anon_client, owner):
     response = login(anon_client, device_name="iPad")
     body = response.get_json()
     assert response.status_code == 200
-    assert body["user"] == {"id": owner.id, "username": TEST_USERNAME}
+    assert body["user"]["id"] == owner.id
+    assert body["user"]["username"] == TEST_USERNAME
+    assert body["user"]["role"] == "admin"  # the owner of a personal install
     assert body["token"].startswith("kyv_")
     assert "Set-Cookie" not in response.headers
 

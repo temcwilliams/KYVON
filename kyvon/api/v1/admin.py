@@ -1,6 +1,7 @@
 """Owner-only diagnostics: status, errors, usage and run history.
 
-KYVON is single-owner, so "signed in" is the admin check. Responses never include secrets:
+Administrators only (the owner of a personal install, or admin accounts on a hosted service).
+Responses never include secrets:
 configuration appears only as yes/no, and free text is redacted before it is stored.
 """
 
@@ -9,7 +10,7 @@ from __future__ import annotations
 from flask import Blueprint, g, jsonify, request
 from sqlalchemy import select
 
-from kyvon.api.deps import get_session, login_required, parse_json, services
+from kyvon.api.deps import admin_required, get_session, parse_json, services
 from kyvon.api.errors import ApiError
 from kyvon.api.schemas import ErrorResolve
 from kyvon.models import Automation, AutomationRun
@@ -27,14 +28,14 @@ def _int(name: str, default: int) -> int:
 
 
 @bp.get("/status")
-@login_required
+@admin_required
 def status():
     deep = request.args.get("deep", "").lower() in ("1", "true", "yes")
     return jsonify(observability.system_status(get_session(), services(), deep=deep))
 
 
 @bp.get("/errors")
-@login_required
+@admin_required
 def errors():
     raw = request.args.get("resolved")
     resolved = None if raw in (None, "") else raw.lower() in ("1", "true", "yes")
@@ -43,7 +44,7 @@ def errors():
 
 
 @bp.post("/errors/<int:error_id>/resolve")
-@login_required
+@admin_required
 def resolve(error_id: int):
     note = parse_json(ErrorResolve).note if request.data else ""
     row = observability.resolve_error(get_session(), error_id, note)
@@ -53,7 +54,7 @@ def resolve(error_id: int):
 
 
 @bp.get("/usage")
-@login_required
+@admin_required
 def usage():
     return jsonify(
         observability.usage_summary(get_session(), days=max(1, min(_int("days", 7), 90)))
@@ -61,7 +62,7 @@ def usage():
 
 
 @bp.get("/automation-runs")
-@login_required
+@admin_required
 def automation_runs():
     rows = get_session().scalars(
         select(AutomationRun)

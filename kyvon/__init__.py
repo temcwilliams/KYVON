@@ -7,7 +7,7 @@ import logging
 import re
 import time
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from http import cookiejar
 from pathlib import Path
 from typing import Any
@@ -32,6 +32,7 @@ from kyvon.llm.base import LLMClient
 from kyvon.llm.groq_client import GroqClient
 from kyvon.logging_setup import configure_logging, request_id_var, user_id_var
 from kyvon.pwa import render_service_worker
+from kyvon.services.email_service import build_email_sender
 from kyvon.services.environment_context import EnvironmentCache
 from kyvon.services.environment_service import EnvironmentService
 from kyvon.services.observability import record_error
@@ -73,6 +74,8 @@ class Services:
     push: Any = None  # web/native push sender (Phase 11), optional
     stt: Any = None  # SpeechToText | None
     rate_limiter: Any = None
+    email: Any = None  # EmailSender | None (hosted accounts)
+    account_deletion_hooks: list = field(default_factory=list)
 
     def shutdown(self) -> None:
         """Stop background work cleanly (called at process exit / SIGTERM)."""
@@ -151,6 +154,18 @@ def create_app(
         GroqWhisper(settings.groq_api_key, settings.stt_model) if settings.groq_api_key else None
     )
     container.logseq = build_graph(settings.logseq_dir)
+    container.email = build_email_sender(settings)
+    if settings.hosted:
+        # Both reach shared server resources (a folder, a private model endpoint) that must never be
+        # exposed to many unrelated accounts.
+        container.hermes = None
+        container.logseq = None
+    if settings.proxy_hops:
+        from werkzeug.middleware.proxy_fix import ProxyFix
+
+        app.wsgi_app = ProxyFix(
+            app.wsgi_app, x_for=settings.proxy_hops, x_proto=settings.proxy_hops
+        )
     container.executor = ToolExecutor(container.registry, container)
     container.agent_runner = AgentRunner(container)
     container.automation_runner = AutomationRunner(container)
@@ -261,6 +276,7 @@ def create_app(
         response.headers["Service-Worker-Allowed"] = "/"
         return response
 
+    from kyvon.api.v1.account import bp as account_bp
     from kyvon.api.v1.admin import bp as admin_bp
     from kyvon.api.v1.agents import bp as agents_bp
     from kyvon.api.v1.auth import bp as auth_bp
@@ -295,5 +311,6 @@ def create_app(
     app.register_blueprint(push_bp)
     app.register_blueprint(voice_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(account_bp)
     app.cli.add_command(cli)
     return app

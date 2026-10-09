@@ -9,7 +9,7 @@ from kyvon.models.memory import Memory
 from kyvon.models.push import PushSubscription
 from kyvon.models.task import Task
 from kyvon.models.tool_run import ToolRun
-from kyvon.models.user import ApiToken, User
+from kyvon.models.user import ApiToken, EmailToken, User
 
 __all__ = [
     "AgentRun",
@@ -18,6 +18,7 @@ __all__ = [
     "AutomationRun",
     "CalendarAccount",
     "Conversation",
+    "EmailToken",
     "ErrorRecord",
     "Memory",
     "Message",

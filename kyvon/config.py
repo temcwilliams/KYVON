@@ -45,12 +45,20 @@ _INTS: dict[str, tuple[str, int, int, int]] = {
     "agent_max_concurrent": ("KYVON_AGENT_MAX_CONCURRENT", 2, 1, 10),
     "rate_limit_chat_per_minute": ("KYVON_RATE_LIMIT_CHAT", 30, 1, 10_000),
     "rate_limit_api_per_minute": ("KYVON_RATE_LIMIT_API", 300, 1, 100_000),
+    # Hosted service (accounts, email)
+    "proxy_hops": ("KYVON_PROXY_HOPS", 0, 0, 5),
+    "smtp_port": ("KYVON_SMTP_PORT", 587, 1, 65535),
+    "verify_ttl_hours": ("KYVON_VERIFY_TTL_HOURS", 48, 1, 720),
+    "reset_ttl_minutes": ("KYVON_RESET_TTL_MINUTES", 60, 5, 1440),
+    "auth_rate_per_minute": ("KYVON_AUTH_RATE_PER_MINUTE", 10, 1, 10_000),
 }
 
 _FLAGS: dict[str, tuple[str, bool]] = {
     "auto_title_llm": ("KYVON_AUTO_TITLE_LLM", True),
     "scheduler_enabled": ("KYVON_SCHEDULER", True),
     "hermes_allow_remote": ("KYVON_HERMES_ALLOW_REMOTE", False),
+    "signup_open": ("KYVON_SIGNUP_OPEN", False),
+    "smtp_starttls": ("KYVON_SMTP_STARTTLS", True),
 }
 
 _STRINGS: dict[str, tuple[str, str]] = {
@@ -70,6 +78,12 @@ _STRINGS: dict[str, tuple[str, str]] = {
     "vapid_private_key": ("KYVON_VAPID_PRIVATE_KEY", ""),
     "vapid_subject": ("KYVON_VAPID_SUBJECT", ""),
     "trusted_origins_raw": ("KYVON_TRUSTED_ORIGINS", ""),
+    "mode": ("KYVON_MODE", "personal"),
+    "email_from": ("KYVON_EMAIL_FROM", ""),
+    "smtp_host": ("KYVON_SMTP_HOST", ""),
+    "smtp_user": ("KYVON_SMTP_USER", ""),
+    "smtp_password": ("KYVON_SMTP_PASSWORD", ""),
+    "terms_version": ("KYVON_TERMS_VERSION", "1"),
 }
 
 _TRUE = ("1", "true", "yes", "on")
@@ -149,6 +163,22 @@ class Settings:
     stt_model: str = DEFAULT_STT_MODEL
     max_audio_bytes: int = 10_000_000
 
+    # Hosted service (KYVON_MODE=hosted): many users, email accounts, quotas, billing.
+    # "personal" (default) keeps the single-owner behaviour exactly as before.
+    mode: str = "personal"
+    signup_open: bool = False  # even in hosted mode, sign-up stays closed until this is set
+    proxy_hops: int = 0  # trusted reverse proxies in front of the app (for the client IP)
+    email_from: str = ""
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_starttls: bool = True
+    verify_ttl_hours: int = 48
+    reset_ttl_minutes: int = 60
+    auth_rate_per_minute: int = 10
+    terms_version: str = "1"
+
     # Requests and abuse limits
     llm_timeout_seconds: int = 60
     max_request_bytes: int = 1_000_000
@@ -176,6 +206,18 @@ class Settings:
     @property
     def push_configured(self) -> bool:
         return bool(self.vapid_public_key and self.vapid_private_key and self.vapid_subject)
+
+    @property
+    def hosted(self) -> bool:
+        return self.mode == "hosted"
+
+    @property
+    def signup_enabled(self) -> bool:
+        return self.hosted and self.signup_open
+
+    @property
+    def email_configured(self) -> bool:
+        return bool(self.smtp_host and self.email_from)
 
     @property
     def calendar_configured(self) -> bool:
@@ -213,6 +255,10 @@ class Settings:
         if env not in VALID_ENVS:
             raise ConfigError(f"KYVON_ENV must be one of {', '.join(VALID_ENVS)} (got {env!r}).")
 
+        mode = get("KYVON_MODE", "personal").lower()
+        if mode not in ("personal", "hosted"):
+            raise ConfigError("KYVON_MODE must be 'personal' or 'hosted'.")
+
         log_level = get("LOG_LEVEL", "INFO").upper()
         if log_level not in VALID_LOG_LEVELS:
             raise ConfigError(f"LOG_LEVEL must be one of {', '.join(VALID_LOG_LEVELS)}.")
@@ -240,6 +286,7 @@ class Settings:
 
         for field, (name, default) in _STRINGS.items():
             values[field] = get(name, default)
+        values["mode"] = mode
 
         log_json = (
             get("KYVON_LOG_JSON", "true" if env == "production" else "false").lower() in _TRUE

@@ -21,6 +21,10 @@ PUBLIC_ENDPOINTS = {
     "v1.health",
     "v1.ready",
     "auth.login",
+    "auth.signup",  # hosted sign-up: gated by KYVON_SIGNUP_OPEN, rate-limited, same answer always
+    "auth.verify_email",  # one-time emailed token
+    "auth.forgot_password",
+    "auth.reset_password",  # one-time emailed token
     "calendar.callback",  # identified by a one-time OAuth state
     "static",
     "index",
