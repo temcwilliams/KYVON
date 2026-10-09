@@ -1,4 +1,9 @@
-flask
-groq
-python-dotenv
-requests
+flask>=3.1,<4
+groq>=1.7,<2
+python-dotenv>=1.2,<2
+requests>=2.34,<3
+sqlalchemy>=2.0,<3
+alembic>=1.13,<2
+pydantic>=2.8,<3
+gunicorn>=23,<27
+cryptography>=42,<60

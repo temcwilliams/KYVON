@@ -1,0 +1,21 @@
+{
+    "name": "KYVON",
+    "short_name": "KYVON",
+    "description": "Your personal AI assistant: chat, memory, tasks, calendar and reminders.",
+    "id": "/",
+    "start_url": "/?source=pwa",
+    "scope": "/",
+    "display": "standalone",
+    "orientation": "any",
+    "background_color": "#050505",
+    "theme_color": "#050505",
+    "categories": ["productivity", "utilities"],
+    "icons": [
+        { "src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+        { "src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+        { "src": "/static/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    ],
+    "shortcuts": [
+        { "name": "New chat", "short_name": "New chat", "url": "/?new=1", "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }] }
+    ]
+}

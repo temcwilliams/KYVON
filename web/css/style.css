@@ -1,0 +1,930 @@
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    height: 100dvh;
+    overflow: hidden;
+
+    font-family:
+        "Courier New",
+        monospace;
+
+    background: #030303;
+    color: #eeeeee;
+}
+
+body {
+    display: block;
+}
+
+.app {
+    display: flex;
+    justify-content: center;
+
+    width: 100%;
+    height: 100%;
+}
+
+.background {
+    position: fixed;
+    inset: 0;
+
+    background:
+        radial-gradient(
+            circle at center,
+            #151515 0%,
+            #070707 40%,
+            #000000 100%
+        );
+
+    z-index: -2;
+}
+
+.background::after {
+    content: "";
+
+    position: absolute;
+    inset: 0;
+
+    background-image:
+        linear-gradient(
+            rgba(255, 255, 255, 0.025) 1px,
+            transparent 1px
+        ),
+        linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.025) 1px,
+            transparent 1px
+        );
+
+    background-size: 40px 40px;
+}
+
+.kyvon {
+    width: min(100%, 1000px);
+    height: 100%;
+
+    display: flex;
+    flex-direction: column;
+
+    padding: 25px;
+
+    position: relative;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    border-bottom: 1px solid #333;
+
+    padding-bottom: 15px;
+}
+
+.brand {
+    font-size: 22px;
+    letter-spacing: 5px;
+    font-weight: bold;
+}
+
+.status {
+    font-size: 12px;
+    letter-spacing: 2px;
+}
+
+.core {
+    width: 240px;
+    height: 240px;
+
+    margin: 35px auto 20px;
+
+    position: relative;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ring {
+    position: absolute;
+
+    border: 1px solid #777;
+
+    border-radius: 50%;
+}
+
+.ring-one {
+    width: 230px;
+    height: 230px;
+
+    animation: spin 12s linear infinite;
+}
+
+.ring-two {
+    width: 185px;
+    height: 185px;
+
+    animation: spinReverse 8s linear infinite;
+}
+
+.ring-three {
+    width: 140px;
+    height: 140px;
+
+    animation: spin 5s linear infinite;
+}
+
+.core-center {
+    width: 100px;
+    height: 100px;
+
+    border: 2px solid #aaa;
+
+    border-radius: 50%;
+
+    display: flex;
+    flex-direction: column;
+
+    align-items: center;
+    justify-content: center;
+
+    box-shadow:
+        0 0 20px rgba(255, 255, 255, 0.15);
+}
+
+.core-text {
+    font-size: 13px;
+    letter-spacing: 2px;
+}
+
+.listening {
+    font-size: 8px;
+    margin-top: 6px;
+    opacity: 0.6;
+}
+
+.conversation {
+    flex: 1;
+
+    overflow-y: auto;
+
+    padding: 15px;
+
+    border: 1px solid #222;
+
+    background: rgba(0, 0, 0, 0.4);
+
+    border-radius: 8px;
+}
+
+.message {
+    padding: 14px 5px;
+
+    line-height: 1.6;
+
+    white-space: pre-wrap;
+
+    border-bottom: 1px solid #161616;
+}
+
+.speaker {
+    font-weight: bold;
+    margin-right: 8px;
+}
+
+.user-message .speaker {
+    font-weight: bold;
+}
+
+.kyvon-message .speaker {
+    font-weight: bold;
+}
+
+.input-area {
+    display: flex;
+    gap: 8px;
+
+    margin-top: 15px;
+}
+
+input {
+    flex: 1;
+
+    background: #090909;
+
+    color: white;
+
+    border: 1px solid #333;
+
+    padding: 14px;
+
+    border-radius: 5px;
+
+    font-family: inherit;
+
+    outline: none;
+}
+
+input:focus {
+    border-color: #888;
+}
+
+button {
+    background: #0b0b0b;
+
+    color: white;
+
+    border: 1px solid #444;
+
+    padding: 12px 16px;
+
+    border-radius: 5px;
+
+    font-family: inherit;
+
+    cursor: pointer;
+}
+
+button:active {
+    transform: scale(0.97);
+}
+
+footer {
+    display: flex;
+
+    justify-content: center;
+
+    gap: 10px;
+
+    margin-top: 12px;
+}
+
+footer button {
+    font-size: 10px;
+}
+
+@keyframes spin {
+
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes spinReverse {
+
+    from {
+        transform: rotate(360deg);
+    }
+
+    to {
+        transform: rotate(0deg);
+    }
+}
+
+@media (max-width: 600px) {
+
+    .kyvon {
+        padding: 15px;
+    }
+
+    .core {
+        transform: scale(0.8);
+
+        margin: 15px auto 5px;
+    }
+
+    .input-area {
+        flex-wrap: wrap;
+    }
+
+    input {
+        width: 100%;
+        flex-basis: 100%;
+    }
+
+    #sendButton,
+    #micButton {
+        flex: 1;
+    }
+}
+/* ---- sign-in (added for authentication) ---- */
+
+.login {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    background: rgba(0, 0, 0, 0.92);
+}
+
+.login[hidden] {
+    display: none;
+}
+
+.login form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    width: min(320px, 86vw);
+}
+
+.login-title {
+    text-align: center;
+    letter-spacing: 6px;
+    margin-bottom: 8px;
+}
+
+.login-error {
+    min-height: 1.2em;
+
+    font-size: 12px;
+    color: #ff8a8a;
+}
+
+
+/* ---- drawer, tabs, lists (Phase 2) ---- */
+
+.skip-link {
+    position: absolute;
+    left: -999px;
+    top: 0;
+    z-index: 30;
+
+    background: #fff;
+    color: #000;
+    padding: 8px 12px;
+}
+
+.skip-link:focus {
+    left: 8px;
+}
+
+.menu-button,
+.icon-button {
+    font-size: 18px;
+    padding: 6px 12px;
+}
+
+header {
+    gap: 12px;
+}
+
+.brand {
+    flex: 1;
+    text-align: center;
+}
+
+.drawer {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 20;
+
+    width: min(88vw, 360px);
+
+    display: flex;
+    flex-direction: column;
+
+    background: #070707;
+    border-right: 1px solid #333;
+
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+
+    padding-top: env(safe-area-inset-top);
+}
+
+.drawer.open {
+    transform: none;
+}
+
+.scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 15;
+
+    background: rgba(0, 0, 0, 0.6);
+
+    display: none;
+}
+
+.scrim.open {
+    display: block;
+}
+
+.drawer-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    padding: 14px 14px 6px;
+}
+
+.drawer-title {
+    letter-spacing: 4px;
+    font-size: 12px;
+}
+
+.tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+
+    padding: 6px 14px 10px;
+
+    border-bottom: 1px solid #222;
+}
+
+.tab {
+    font-size: 11px;
+    padding: 8px 10px;
+}
+
+.tab.active,
+.tab[aria-selected="true"] {
+    border-color: #ddd;
+    background: #1a1a1a;
+}
+
+.panel {
+    flex: 1;
+    overflow-y: auto;
+
+    padding: 14px;
+}
+
+.toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+
+    margin-bottom: 12px;
+}
+
+.check {
+    font-size: 12px;
+}
+
+.check input {
+    width: auto;
+    padding: 0;
+}
+
+.list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.item {
+    border: 1px solid #222;
+    border-radius: 6px;
+
+    background: #0a0a0a;
+}
+
+.item.current {
+    border-color: #888;
+}
+
+.item-main {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    width: 100%;
+
+    text-align: left;
+
+    border: 0;
+    background: transparent;
+}
+
+.item-title {
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.item-meta {
+    font-size: 10px;
+    opacity: 0.6;
+}
+
+.item-actions {
+    display: flex;
+    gap: 6px;
+
+    padding: 0 8px 8px;
+}
+
+.mini {
+    font-size: 10px;
+    padding: 6px 8px;
+}
+
+.mini.danger {
+    border-color: #7a3a3a;
+    color: #ffb0b0;
+}
+
+.empty {
+    font-size: 12px;
+    opacity: 0.6;
+}
+
+.message-note {
+    font-size: 11px;
+    opacity: 0.6;
+}
+
+.message-error .message-text {
+    color: #ff9a9a;
+}
+
+:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}
+
+@media (min-width: 1000px) {
+    .drawer {
+        position: static;
+        transform: none;
+        flex: 0 0 340px;
+    }
+
+    .scrim,
+    .scrim.open {
+        display: none;
+    }
+
+    .menu-button,
+    #drawerClose {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ring {
+        animation: none;
+    }
+
+    .drawer {
+        transition: none;
+    }
+}
+
+/* ---- forms inside panels ---- */
+
+.stack {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    margin-bottom: 12px;
+}
+
+.row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.row > input,
+.row > select {
+    flex: 1;
+    min-width: 0;
+}
+
+select,
+textarea {
+    background: #090909;
+    color: white;
+    border: 1px solid #333;
+    border-radius: 5px;
+    padding: 10px;
+    font-family: inherit;
+}
+
+.item-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    padding: 10px;
+}
+
+.note {
+    font-size: 12px;
+    min-height: 1.2em;
+    margin: 0 0 8px;
+}
+
+.note.error {
+    color: #ff9a9a;
+}
+
+/* ---- tool activity and approvals ---- */
+
+.tool-message {
+    font-size: 12px;
+    opacity: 0.7;
+    padding: 6px 5px;
+}
+
+.confirm-card {
+    margin: 10px 0;
+    padding: 12px;
+
+    border: 1px solid #b59a3a;
+    border-radius: 6px;
+
+    background: rgba(181, 154, 58, 0.08);
+}
+
+.confirm-summary {
+    margin: 8px 0;
+    line-height: 1.5;
+}
+
+.confirm-args {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 11px;
+    opacity: 0.85;
+}
+
+.confirm-status {
+    font-size: 12px;
+    margin: 8px 0 0;
+}
+
+/* ---- tasks and calendar ---- */
+
+.task-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+
+    padding: 10px;
+}
+
+.task-row input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
+    flex: none;
+    padding: 0;
+}
+
+.task-row .item-body {
+    padding: 0;
+}
+
+.task.done .item-title {
+    text-decoration: line-through;
+    opacity: 0.55;
+}
+
+.task.overdue .item-meta {
+    color: #ff9a9a;
+    opacity: 1;
+}
+
+.section {
+    font-size: 12px;
+    letter-spacing: 2px;
+    font-weight: normal;
+    margin: 14px 0 8px;
+}
+
+.page-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+/* ---- inbox ---- */
+
+.bell {
+    position: relative;
+}
+
+.badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+
+    min-width: 18px;
+    padding: 1px 5px;
+
+    border-radius: 9px;
+
+    background: #d24d4d;
+    color: #fff;
+
+    font-size: 10px;
+    line-height: 1.4;
+}
+
+.item.unread {
+    border-color: #b59a3a;
+}
+
+.note-body {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 13px;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    font-size: 12px;
+}
+
+.field.check {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+}
+
+.field textarea,
+.field input[type="text"] {
+    width: 100%;
+}
+
+/* ---- connection, safe areas, and layouts for phone / tablet / desktop ---- */
+
+.offline-banner {
+    padding: 8px 12px;
+    margin-bottom: 8px;
+
+    border: 1px solid #b59a3a;
+    border-radius: 6px;
+
+    background: rgba(181, 154, 58, 0.12);
+
+    font-size: 12px;
+    text-align: center;
+}
+
+.offline-banner[hidden] {
+    display: none;
+}
+
+.kyvon {
+    padding-top: max(25px, env(safe-area-inset-top));
+    padding-bottom: max(25px, env(safe-area-inset-bottom));
+    padding-left: max(25px, env(safe-area-inset-left));
+    padding-right: max(25px, env(safe-area-inset-right));
+    min-height: 0;
+}
+
+.conversation {
+    min-height: 0;
+}
+
+/* Text that carries meaning must stay readable (WCAG AA on the dark background). */
+.item-meta,
+.empty,
+.listening,
+.message-note {
+    opacity: 0.8;
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Phones (portrait): compact header and core so the conversation gets the room. */
+@media (max-width: 599px) {
+    .kyvon {
+        padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    }
+
+    .core {
+        width: 160px;
+        height: 160px;
+        margin: 12px auto 8px;
+        transform: none;
+    }
+
+    .ring-one { width: 150px; height: 150px; }
+    .ring-two { width: 120px; height: 120px; }
+    .ring-three { width: 92px; height: 92px; }
+    .core-center { width: 68px; height: 68px; }
+
+    input,
+    select,
+    textarea {
+        font-size: 16px; /* prevents iOS from zooming into the field */
+    }
+
+    footer {
+        flex-wrap: wrap;
+    }
+}
+
+/* Short screens (phones in landscape, small windows): drop the decorative core. */
+@media (max-height: 640px) {
+    .core {
+        display: none;
+    }
+}
+
+/* Tablets: comfortable reading width, larger touch targets. */
+@media (min-width: 600px) and (max-width: 999px) {
+    .kyvon {
+        width: min(100%, 820px);
+    }
+
+    .message {
+        font-size: 17px;
+    }
+}
+
+/* Touch devices: 44px minimum touch targets. */
+@media (pointer: coarse) {
+    button,
+    select,
+    input[type="checkbox"] {
+        min-height: 44px;
+    }
+
+    .mini {
+        min-height: 36px;
+    }
+
+    input[type="checkbox"] {
+        min-width: 24px;
+    }
+}
+
+/* Desktop: the menu stays open beside the conversation (see the 1000px rule above). */
+@media (min-width: 1400px) {
+    .kyvon {
+        width: min(100%, 1100px);
+    }
+}
+
+@media (prefers-contrast: more) {
+    .item,
+    input,
+    button,
+    select {
+        border-color: #fff;
+    }
+}
+
+/* Installed app: no browser chrome, so respect the notch. */
+@media (display-mode: standalone) {
+    body {
+        overscroll-behavior: none;
+    }
+}
+
+/* ---- admin ---- */
+
+.kv {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+
+    padding: 4px 0;
+
+    border-bottom: 1px solid #161616;
+
+    font-size: 12px;
+}
+
+.kv .v.good { color: #8fdc9a; }
+.kv .v.bad { color: #ff9a9a; }
+.admin-section { margin-bottom: 14px; }

@@ -1,0 +1,42 @@
+# systemd unit for the Ubuntu VM. Review the paths, then:
+#   sudo cp deploy/kyvon.service /etc/systemd/system/kyvon.service
+#   sudo systemctl daemon-reload && sudo systemctl restart kyvon
+# Full procedure: docs/DEPLOYMENT.md
+[Unit]
+Description=KYVON assistant
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=traxc93
+WorkingDirectory=/home/traxc93/kyvon-assistant
+# Secrets (GROQ_API_KEY, ...) live in this file, not in the unit. chmod 600 it.
+EnvironmentFile=/home/traxc93/kyvon-assistant/.env
+Environment=KYVON_ENV=production
+Environment=PYTHONUNBUFFERED=1
+
+# Fail early with a readable message if the configuration is wrong, then migrate, then start.
+ExecStartPre=/home/traxc93/kyvon-assistant/.venv/bin/flask --app wsgi kyvon doctor --quiet
+ExecStartPre=/home/traxc93/kyvon-assistant/.venv/bin/flask --app wsgi kyvon db-upgrade
+ExecStart=/home/traxc93/kyvon-assistant/.venv/bin/gunicorn -c gunicorn.conf.py wsgi:app
+
+# Graceful stop: SIGTERM lets in-flight requests finish and stops the scheduler cleanly.
+KillSignal=SIGTERM
+TimeoutStopSec=40
+Restart=on-failure
+RestartSec=3
+# Logs go to journald (JSON in production): journalctl -u kyvon -o cat | jq
+
+# Hardening: the service can only write its own folder.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/home/traxc93/kyvon-assistant/data
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target
