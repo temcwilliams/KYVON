@@ -17,6 +17,7 @@ directory; real environment variables win over `.env`. **Never commit real value
 | `KYVON_AUTH_RATE_PER_MINUTE` | `10` | Sign-up, password reset and verification requests allowed per client IP per minute. |
 | `KYVON_AUTOMATION_MAX_PER_USER` | `50` | Whole number, 1 to 1000. |
 | `KYVON_AUTO_TITLE_LLM` | `true` | Let the model write conversation titles. |
+| `KYVON_BILLING_GRACE_DAYS` | `3` | Days a past-due subscription keeps the paid plan before dropping to free. |
 | `KYVON_CONFIRMATION_TTL_MINUTES` | `60` | Whole number, 1 to 10080. |
 | `KYVON_CONTEXT_MAX_MESSAGES` | `40` | Whole number, 2 to 500. |
 | `KYVON_CONTEXT_MAX_TOKENS` | `6000` | Whole number, 500 to 200000. |
@@ -41,6 +42,7 @@ directory; real environment variables win over `.env`. **Never commit real value
 | `KYVON_MEMORY_RETRIEVAL_K` | `8` | Whole number, 1 to 50. |
 | `KYVON_MODE` | `personal` | `personal` (one owner, the default) or `hosted` (many users with email accounts, quotas and billing). |
 | `KYVON_MODEL` | `openai/gpt-oss-120b` | Chat model (Groq). |
+| `KYVON_PRICE_LABEL` | `(none)` | Text shown beside the upgrade button, such as `$9 / month`. |
 | `KYVON_PROXY_HOPS` | `0` | Number of trusted reverse proxies in front of the app, so the real client IP is used for limits. |
 | `KYVON_PUBLIC_URL` | `http://localhost:8080` | How browsers reach KYVON (used for the Google OAuth redirect and trusted origin). |
 | `KYVON_QUOTA_FREE_MESSAGES` | `30` | Hosted: chat messages per month on the free plan. |
@@ -76,5 +78,8 @@ directory; real environment variables win over `.env`. **Never commit real value
 | `KYVON_WEB_MODEL` | `groq/compound` | Web research model (Groq). |
 | `LOG_LEVEL` | `INFO` | DEBUG, INFO, WARNING, ERROR or CRITICAL. |
 | `PORT` | `8080` | Port gunicorn / `python app.py` listens on. Keep 8080 for the Cloudflare Tunnel. |
+| `STRIPE_PRICE_ID` | `(none)` | Stripe Price id of the paid subscription. |
+| `STRIPE_SECRET_KEY` | `(none)` | Stripe secret key (hosted mode billing). Secret. |
+| `STRIPE_WEBHOOK_SECRET` | `(none)` | Signing secret of the Stripe webhook endpoint (`/api/v1/billing/webhook`). Secret. |
 
 See [.env.example](../.env.example) for a starter file.

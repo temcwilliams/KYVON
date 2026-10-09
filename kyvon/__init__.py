@@ -28,6 +28,7 @@ from kyvon.db import make_engine, make_session_factory
 from kyvon.integrations.hermes import build_hermes
 from kyvon.integrations.logseq import build_graph
 from kyvon.integrations.speech import GroqWhisper
+from kyvon.integrations.stripe_billing import build_stripe
 from kyvon.llm.base import LLMClient
 from kyvon.llm.groq_client import GroqClient
 from kyvon.logging_setup import configure_logging, request_id_var, user_id_var
@@ -75,6 +76,7 @@ class Services:
     stt: Any = None  # SpeechToText | None
     rate_limiter: Any = None
     email: Any = None  # EmailSender | None (hosted accounts)
+    stripe: Any = None  # StripeClient | None (hosted billing)
     account_deletion_hooks: list = field(default_factory=list)
 
     def shutdown(self) -> None:
@@ -155,6 +157,15 @@ def create_app(
     )
     container.logseq = build_graph(settings.logseq_dir)
     container.email = build_email_sender(settings)
+    container.stripe = build_stripe(settings, container.http)
+    if settings.hosted:
+        from kyvon.services.billing_service import BillingService
+
+        container.account_deletion_hooks.append(
+            lambda session, user: BillingService(
+                session, settings, container.stripe
+            ).cancel_before_deletion(user)
+        )
     if settings.hosted:
         # Both reach shared server resources (a folder, a private model endpoint) that must never be
         # exposed to many unrelated accounts.
@@ -281,6 +292,7 @@ def create_app(
     from kyvon.api.v1.agents import bp as agents_bp
     from kyvon.api.v1.auth import bp as auth_bp
     from kyvon.api.v1.automations import bp as automations_bp
+    from kyvon.api.v1.billing import bp as billing_bp
     from kyvon.api.v1.calendar import bp as calendar_bp
     from kyvon.api.v1.chat import bp as chat_bp
     from kyvon.api.v1.conversations import bp as conversations_bp
@@ -312,5 +324,6 @@ def create_app(
     app.register_blueprint(voice_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(account_bp)
+    app.register_blueprint(billing_bp)
     app.cli.add_command(cli)
     return app

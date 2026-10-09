@@ -32,13 +32,13 @@ def month_bounds(now: datetime) -> tuple[datetime, datetime]:
     return start, nxt
 
 
-def plan_for(session: Session, user: User) -> str:
+def plan_for(session: Session, user: User, *, grace_days: int = 3) -> str:
     """'admin' (unlimited), 'pro' or 'free'. Billing decides pro (see billing_service)."""
     if user.is_admin:
         return "admin"
     from kyvon.services import billing_service
 
-    return billing_service.entitled_plan(session, user)
+    return billing_service.entitled_plan(session, user, grace_days=grace_days)
 
 
 def limits_for(settings: Settings, plan: str) -> dict[str, int] | None:
@@ -103,7 +103,7 @@ class UsageGate:
     def check(self, kind: str) -> None:
         """Raise EmailNotVerified or QuotaExceeded if ``kind`` of action is not allowed now."""
         user = self._user()
-        plan = plan_for(self._s, user)
+        plan = plan_for(self._s, user, grace_days=self._settings.billing_grace_days)
         if plan == "admin":
             return
         if not user.email_verified:
@@ -139,7 +139,7 @@ def summary(
 ) -> dict:
     """The plan, allowances, usage so far and reset date, for the account screen."""
     current = now or utcnow()
-    plan = plan_for(session, user)
+    plan = plan_for(session, user, grace_days=settings.billing_grace_days)
     start, resets = month_bounds(current)
     used = totals(session, user.id, start)
     limits = limits_for(settings, plan)

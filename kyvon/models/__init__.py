@@ -2,6 +2,7 @@
 
 from kyvon.models.agent_run import AgentRun
 from kyvon.models.automation import Automation, AutomationRun, Notification
+from kyvon.models.billing import BillingEvent, Subscription
 from kyvon.models.calendar import CalendarAccount, OAuthState
 from kyvon.models.conversation import Conversation, Message
 from kyvon.models.error_record import ErrorRecord
@@ -17,6 +18,7 @@ __all__ = [
     "ApiToken",
     "Automation",
     "AutomationRun",
+    "BillingEvent",
     "CalendarAccount",
     "Conversation",
     "EmailToken",
@@ -26,6 +28,7 @@ __all__ = [
     "Notification",
     "OAuthState",
     "PushSubscription",
+    "Subscription",
     "Task",
     "ToolRun",
     "UsageEvent",
