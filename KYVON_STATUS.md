@@ -166,7 +166,7 @@ Follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). In short: back up, pull, `pip i
 10. Conversation text is stored unencrypted in SQLite (protect the disk and `data/`); it is also sent to Groq, and
     audio to Groq Whisper.
 11. Weather codes 56/57, 66/67, 77, 85/86 show "Unknown conditions" (kept from the prototype).
-12. The GitHub repository and local folder are still named `jarvis-assistant`.
+12. The GitHub repository is now named `kyvon`; the local folder on the dev machine and the old VM folders keep their old names.
 13. Two status endpoints exist (`/status` for the SYSTEM button, `/admin/status` for the owner) by design.
 
 ## Future ideas that are genuinely not built

@@ -18,8 +18,8 @@ enum Theme {
 /// Where the policies live. They must be public web pages (App Store Connect asks for the privacy
 /// policy URL). Update these if the documents move, for example to a site you host.
 enum LegalLinks {
-    static let privacy = URL(string: "https://github.com/temcwilliams/jarvis-assistant/blob/main/docs/legal/PRIVACY_POLICY.md")!
-    static let terms = URL(string: "https://github.com/temcwilliams/jarvis-assistant/blob/main/docs/legal/TERMS_OF_USE.md")!
+    static let privacy = URL(string: "https://github.com/temcwilliams/kyvon/blob/main/docs/legal/PRIVACY_POLICY.md")!
+    static let terms = URL(string: "https://github.com/temcwilliams/kyvon/blob/main/docs/legal/TERMS_OF_USE.md")!
 }
 
 /// A rounded card row used by every list so the screens feel like one app.
