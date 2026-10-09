@@ -131,6 +131,10 @@ export async function sendMessage() {
             reportNetworkFailure();
             if (reply) reply.markInterrupted();
             say("The connection dropped. I'll reload this conversation when you're back online, so you can see what was saved.");
+        } else if (error instanceof ApiError && error.code === "quota_exceeded") {
+            say(error.message + " Open the menu and choose ACCOUNT to see your plan or upgrade.");
+        } else if (error instanceof ApiError && error.code === "email_unverified") {
+            say(error.message);
         } else if (!(error instanceof ApiError && error.status === 401)) {
             say("I encountered an error: " + error.message);
         }

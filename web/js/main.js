@@ -1,6 +1,7 @@
 // Application entry point: sign-in gate, then wire the modules together.
 
-import { currentUser, hideLogin, initLogin, logout, showLogin } from "./auth.js";
+import { currentUser, handleEmailLink, hideLogin, initLogin, loadConfig, logout, showLogin } from "./auth.js";
+import { registerAccountPanel } from "./account.js";
 import { newConversation, openConversation, sendMessage } from "./chat.js";
 import "./conversations.js";
 import "./tasks.js";
@@ -89,8 +90,20 @@ async function boot() {
     registerServiceWorker();
     initConnection();
     bindControls();
+    const config = await loadConfig();  // personal or hosted: decides which screens exist
+    if (config.mode === "hosted") registerAccountPanel();
     initDrawer();
     initLogin(start);
+
+    // A link from an email (confirm address / reset password) takes over the sign-in screen,
+    // including when the app is already open and only the part after '#' changes.
+    window.addEventListener("hashchange", () => {
+        handleEmailLink().then(handled => handled && setStatus("SIGN IN"));
+    });
+    if (await handleEmailLink()) {
+        setStatus("SIGN IN");
+        return;
+    }
 
     try {
         const user = await currentUser();

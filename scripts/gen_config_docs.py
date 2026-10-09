@@ -83,6 +83,8 @@ NOTES = {
     "STRIPE_WEBHOOK_SECRET": "Signing secret of the Stripe webhook endpoint (`/api/v1/billing/webhook`). Secret.",
     "STRIPE_PRICE_ID": "Stripe Price id of the paid subscription.",
     "KYVON_PRICE_LABEL": "Text shown beside the upgrade button, such as `$9 / month`.",
+    "KYVON_PRIVACY_URL": "Public URL of the privacy policy, linked from the sign-up form (hosted mode).",
+    "KYVON_TERMS_URL": "Public URL of the terms of use, linked from the sign-up form (hosted mode).",
     "KYVON_BILLING_GRACE_DAYS": "Days a past-due subscription keeps the paid plan before dropping to free.",
     "KYVON_QUOTA_FREE_MESSAGES": "Hosted: chat messages per month on the free plan.",
     "KYVON_QUOTA_FREE_TOKENS": "Hosted: model tokens per month on the free plan (the real cost cap).",
