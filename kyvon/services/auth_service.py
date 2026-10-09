@@ -17,6 +17,7 @@ from collections.abc import Callable
 from datetime import datetime, timedelta
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -114,18 +115,27 @@ def create_user(
     if session.scalar(select(User.id).where(User.email == email)) is not None:
         raise AuthError("That email is already registered.")
     current = now()
-    user = User(
-        username=_free_username(session, email),
-        email=email,
-        password_hash=generate_password_hash(password),
-        role=role,
-        email_verified_at=current if verified else None,
-        terms_accepted_at=current if terms_version else None,
-        terms_version=terms_version,
-    )
-    session.add(user)
-    session.commit()
-    return user
+    password_hash = generate_password_hash(password)
+    for _attempt in range(3):
+        user = User(
+            username=_free_username(session, email),
+            email=email,
+            password_hash=password_hash,
+            role=role,
+            email_verified_at=current if verified else None,
+            terms_accepted_at=current if terms_version else None,
+            terms_version=terms_version,
+        )
+        session.add(user)
+        try:
+            session.commit()
+            return user
+        except IntegrityError:
+            # A simultaneous sign-up won the race for this email (or for the username we picked).
+            session.rollback()
+            if session.scalar(select(User.id).where(User.email == email)) is not None:
+                raise AuthError("That email is already registered.") from None
+    raise AuthError("Could not create the account. Please try again.")
 
 
 def find_by_email(session: Session, email: str) -> User | None:
