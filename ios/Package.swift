@@ -6,7 +6,7 @@ import PackageDescription
 // point, entitlements and Info.plist keys. All assistant logic stays on the server.
 let package = Package(
     name: "KYVON",
-    platforms: [.iOS(.v16), .macOS(.v13)],
+    platforms: [.iOS(.v16), .macOS(.v14)],
     products: [
         .library(name: "KYVONKit", targets: ["KYVONKit"]),
         .library(name: "KYVONApp", targets: ["KYVONApp"]),
