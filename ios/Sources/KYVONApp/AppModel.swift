@@ -20,6 +20,9 @@ public final class AppModel: ObservableObject {
     @Published public var notifications: [KNotification] = []
     @Published public var unreadCount = 0
     @Published public var preferences: Preferences?
+    @Published public var account: AccountInfo?
+    @Published public var publicConfig: PublicConfig?
+    @Published public var infoText: String?
     @Published public var currentConversationId: Int?
     @Published public var isReplying = false
     @Published public var statusText = ""
@@ -63,11 +66,14 @@ public final class AppModel: ObservableObject {
             phase = .needsConsent
             return
         }
-        guard let text = defaults.string(forKey: "serverURL"), let url = Self.validatedServerURL(text) else {
+        // A build that ships with a hosted service address skips the "server address" step.
+        let stored = defaults.string(forKey: "serverURL") ?? HostedConfig.urlString
+        guard let text = stored, let url = Self.validatedServerURL(text) else {
             phase = .needsServer
             return
         }
         client = APIClient(baseURL: url, tokens: tokens, transport: transport)
+        publicConfig = try? await client?.publicConfig()
         if client?.hasToken == true, let user = try? await client?.currentUser() {
             phase = .signedIn(user)
             await refreshAll()
@@ -100,6 +106,7 @@ public final class AppModel: ObservableObject {
         await client?.logout()
         conversations = []; messages = []; pendingApprovals = []; currentConversationId = nil
         openTasks = []; doneTasks = []; memories = []; notifications = []; unreadCount = 0; preferences = nil
+        account = nil
         phase = .signedOut
     }
 
@@ -112,6 +119,65 @@ public final class AppModel: ObservableObject {
         await refreshMemories()
         await refreshInbox()
         await refreshPreferences()
+        await refreshAccount()
+    }
+
+    // MARK: account (hosted service)
+
+    public func refreshAccount() async {
+        guard publicConfig?.isHosted == true else { return }
+        do { account = try await client?.account() } catch { handle(error) }
+    }
+
+    public func signUp(email: String, password: String, acceptTerms: Bool) async {
+        guard let client else { return }
+        do {
+            infoText = try await client.signUp(email: email, password: password, acceptTerms: acceptTerms)
+            errorText = nil
+        } catch { errorText = describe(error) }
+    }
+
+    public func forgotPassword(email: String) async {
+        guard let client else { return }
+        do {
+            infoText = try await client.forgotPassword(email: email)
+            errorText = nil
+        } catch { errorText = describe(error) }
+    }
+
+    public func resendVerification() async {
+        do {
+            try await client?.resendVerification()
+            infoText = "Sent. It can take a minute to arrive."
+        } catch { handle(error) }
+    }
+
+    /// Deletes the account on the server, then returns to the sign-in screen.
+    public func deleteAccount(password: String) async -> Bool {
+        guard let client else { return false }
+        do {
+            try await client.deleteAccount(password: password)
+            streamTask?.cancel()
+            conversations = []; messages = []; pendingApprovals = []; currentConversationId = nil
+            openTasks = []; doneTasks = []; memories = []; notifications = []; unreadCount = 0
+            preferences = nil; account = nil
+            phase = .signedOut
+            infoText = "Your account was deleted."
+            return true
+        } catch {
+            errorText = describe(error)
+            return false
+        }
+    }
+
+    /// Forget the saved server address (to use a different server).
+    public func changeServer() {
+        defaults.removeObject(forKey: "serverURL")
+        client = nil
+        publicConfig = nil
+        errorText = nil
+        infoText = nil
+        phase = .needsServer
     }
 
     // MARK: tasks
