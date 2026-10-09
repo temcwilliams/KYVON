@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-24.04
     services:
       postgres:
-        image: postgres:16
+        image: public.ecr.aws/docker/library/postgres:16  # mirror of the official image
         env:
           POSTGRES_USER: kyvon
           POSTGRES_PASSWORD: kyvon-ci-only
@@ -86,7 +86,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build image
-        run: docker build -t kyvon:ci .
+        run: docker build --build-arg BASE_IMAGE=public.ecr.aws/docker/library/python:3.12-slim -t kyvon:ci .
 
   ios:
     # The Swift client has never been compiled locally (no usable Xcode on the dev machine), so

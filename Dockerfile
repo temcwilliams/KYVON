@@ -1,4 +1,7 @@
-FROM python:3.12-slim
+# CI builds with a mirror of the same official image (Docker Hub throttles anonymous pulls from
+# shared runners); everyone else gets the Docker Hub default.
+ARG BASE_IMAGE=python:3.12-slim
+FROM ${BASE_IMAGE}
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
