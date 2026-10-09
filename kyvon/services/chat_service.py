@@ -36,6 +36,7 @@ from kyvon.services.memory_service import (
     parse_recall_request,
 )
 from kyvon.services.summarizer import Summarizer
+from kyvon.services.usage_service import UsageGate
 from kyvon.tools.executor import CallOrigin, ToolExecutor, serialize_tool_run
 
 log = logging.getLogger("kyvon.chat")
@@ -89,6 +90,7 @@ class ChatService:
         profile_text: Callable[[], str] = lambda: "",
         executor: ToolExecutor | None = None,
         tool_names: set[str] | None = None,
+        usage: UsageGate | None = None,
     ):
         self._s = session
         self._settings = settings
@@ -100,6 +102,7 @@ class ChatService:
         self._profile_text = profile_text
         self._executor = executor
         self._tool_names = tool_names  # None: every enabled tool
+        self._usage = usage  # hosted mode: quotas; None means unlimited
         self._limits = ContextLimits(
             max_tokens=settings.context_max_tokens,
             max_messages=settings.context_max_messages,
@@ -112,6 +115,8 @@ class ChatService:
         text = (message or "").strip()
         if not text:
             raise ChatInputError("Empty message.")
+        if self._usage is not None:
+            self._usage.check("chat")  # before anything is stored or any model is called
 
         conversation = (
             self._conversations.get(conversation_id)
@@ -318,12 +323,15 @@ class ChatService:
             self._conversations.finish_message(
                 row, content="".join(pieces).strip(), status="partial", model=last_model
             )
+            self._record_usage(messages, "".join(pieces), tokens_in, tokens_out, saw_usage)
             raise
         except Exception as error:
+            self._record_usage(messages, "".join(pieces), tokens_in, tokens_out, saw_usage)
             yield from self._fail(conversation, row, error, keep_partial="".join(pieces).strip())
             return
 
         content = "".join(pieces).strip()
+        self._record_usage(messages, content, tokens_in, tokens_out, saw_usage)
         self._conversations.finish_message(
             row,
             content=content,
@@ -336,6 +344,21 @@ class ChatService:
             flags["pending_confirmations"] = self._pending_payload(pending_runs)
         yield self._done(conversation, row, flags)
         self._after_turn(conversation, user_row, row, built.included_message_ids, first_exchange)
+
+    def _record_usage(
+        self, messages: list[dict], reply: str, tokens_in: int, tokens_out: int, saw_usage: bool
+    ) -> None:
+        """Meter this turn. If the provider reported no token counts, estimate from the text."""
+        if self._usage is None:
+            return
+        try:
+            if not saw_usage:
+                sent = sum(len(str(m.get("content") or "")) for m in messages)
+                tokens_in, tokens_out = sent // 4, len(reply) // 4
+            self._usage.record("chat", tokens_in, tokens_out)
+        except Exception:
+            log.exception("could not record usage")
+            self._s.rollback()
 
     def _run_tools(
         self,

@@ -19,6 +19,7 @@ from kyvon.api.errors import ApiError
 from kyvon.api.schemas import ChatRequest
 from kyvon.services.chat_service import ChatFailed, ChatInputError
 from kyvon.services.conversation_service import ConversationService
+from kyvon.services.usage_service import UsageGate
 
 bp = Blueprint("chat", __name__, url_prefix="/api/v1")
 
@@ -63,6 +64,10 @@ def chat_stream():
         raise ChatInputError("Empty message.")
     if body.conversation_id is not None:
         ConversationService(get_session(), user_id).get(body.conversation_id)
+    if svc.settings.hosted:
+        UsageGate(get_session(), svc.settings, user_id).check(
+            "chat"
+        )  # a plain 402/403, not a broken stream
 
     def generate():
         # The generator runs after the view returns (in a fresh app context), so it owns

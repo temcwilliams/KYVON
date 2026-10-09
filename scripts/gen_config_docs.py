@@ -77,6 +77,14 @@ NOTES = {
     "KYVON_VERIFY_TTL_HOURS": "How long an email verification link stays valid.",
     "KYVON_RESET_TTL_MINUTES": "How long a password reset link stays valid.",
     "KYVON_AUTH_RATE_PER_MINUTE": "Sign-up, password reset and verification requests allowed per client IP per minute.",
+    "KYVON_QUOTA_FREE_MESSAGES": "Hosted: chat messages per month on the free plan.",
+    "KYVON_QUOTA_FREE_TOKENS": "Hosted: model tokens per month on the free plan (the real cost cap).",
+    "KYVON_QUOTA_FREE_VOICE": "Hosted: voice transcriptions per month on the free plan.",
+    "KYVON_QUOTA_FREE_SEARCHES": "Hosted: web searches per month on the free plan.",
+    "KYVON_QUOTA_PRO_MESSAGES": "Hosted: chat messages per month on the paid plan.",
+    "KYVON_QUOTA_PRO_TOKENS": "Hosted: model tokens per month on the paid plan.",
+    "KYVON_QUOTA_PRO_VOICE": "Hosted: voice transcriptions per month on the paid plan.",
+    "KYVON_QUOTA_PRO_SEARCHES": "Hosted: web searches per month on the paid plan.",
     "KYVON_TERMS_VERSION": "Version label recorded when someone accepts the terms. Bump it when the terms change.",
 }
 

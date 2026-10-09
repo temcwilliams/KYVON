@@ -10,7 +10,7 @@ from kyvon.api.deps import get_session, login_required, parse_json, services
 from kyvon.api.errors import ApiError
 from kyvon.api.schemas import ChangePasswordRequest, DeleteAccountRequest
 from kyvon.api.v1.auth import _clear_auth_cookies, user_json
-from kyvon.services import account_service, auth_service, email_service
+from kyvon.services import account_service, auth_service, email_service, usage_service
 
 bp = Blueprint("account", __name__, url_prefix="/api/v1/account")
 
@@ -19,13 +19,24 @@ bp = Blueprint("account", __name__, url_prefix="/api/v1/account")
 @login_required
 def profile():
     settings = services().settings
-    return jsonify(
-        {
-            "user": user_json(g.user),
-            "created_at": g.user.created_at.isoformat(),
-            "hosted": settings.hosted,
-        }
-    )
+    payload = {
+        "user": user_json(g.user),
+        "created_at": g.user.created_at.isoformat(),
+        "hosted": settings.hosted,
+    }
+    if settings.hosted:
+        payload["usage"] = usage_service.summary(get_session(), settings, g.user)
+    return jsonify(payload)
+
+
+@bp.get("/usage")
+@login_required
+def usage():
+    """This month's allowance and what has been used (hosted mode)."""
+    settings = services().settings
+    if not settings.hosted:
+        raise ApiError(404, "not_found", "Not found.")
+    return jsonify(usage_service.summary(get_session(), settings, g.user))
 
 
 @bp.post("/change-password")

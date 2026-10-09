@@ -43,6 +43,14 @@ directory; real environment variables win over `.env`. **Never commit real value
 | `KYVON_MODEL` | `openai/gpt-oss-120b` | Chat model (Groq). |
 | `KYVON_PROXY_HOPS` | `0` | Number of trusted reverse proxies in front of the app, so the real client IP is used for limits. |
 | `KYVON_PUBLIC_URL` | `http://localhost:8080` | How browsers reach KYVON (used for the Google OAuth redirect and trusted origin). |
+| `KYVON_QUOTA_FREE_MESSAGES` | `30` | Hosted: chat messages per month on the free plan. |
+| `KYVON_QUOTA_FREE_SEARCHES` | `5` | Hosted: web searches per month on the free plan. |
+| `KYVON_QUOTA_FREE_TOKENS` | `60000` | Hosted: model tokens per month on the free plan (the real cost cap). |
+| `KYVON_QUOTA_FREE_VOICE` | `10` | Hosted: voice transcriptions per month on the free plan. |
+| `KYVON_QUOTA_PRO_MESSAGES` | `3000` | Hosted: chat messages per month on the paid plan. |
+| `KYVON_QUOTA_PRO_SEARCHES` | `300` | Hosted: web searches per month on the paid plan. |
+| `KYVON_QUOTA_PRO_TOKENS` | `6000000` | Hosted: model tokens per month on the paid plan. |
+| `KYVON_QUOTA_PRO_VOICE` | `500` | Hosted: voice transcriptions per month on the paid plan. |
 | `KYVON_RATE_LIMIT_API` | `300` | Whole number, 1 to 100000. |
 | `KYVON_RATE_LIMIT_CHAT` | `30` | Whole number, 1 to 10000. |
 | `KYVON_RESET_TTL_MINUTES` | `60` | How long a password reset link stays valid. |

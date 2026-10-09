@@ -8,6 +8,7 @@ from kyvon.api.deps import enforce_rate, login_required, services
 from kyvon.api.errors import ApiError
 from kyvon.integrations.speech import MIME_TO_EXTENSION, SpeechError, sniff_audio
 from kyvon.services.settings_service import get_settings
+from kyvon.services.usage_service import UsageGate
 
 bp = Blueprint("voice", __name__, url_prefix="/api/v1/voice")
 
@@ -57,6 +58,10 @@ def transcribe():
     if container is None:
         raise ApiError(415, "unsupported_media", "That file does not look like audio.")
 
+    gate = UsageGate(_session(), svc.settings, g.user.id) if svc.settings.hosted else None
+    if gate is not None:
+        gate.check("voice")
+
     language = (request.form.get("language") or "").strip().lower() or None
     if language is not None and not (2 <= len(language) <= 3 and language.isalpha()):
         raise ApiError(400, "invalid_request", "language must be a short code like 'en'.")
@@ -65,4 +70,6 @@ def transcribe():
     except SpeechError as error:
         svc.error_log.log("Speech Error", str(error), "")
         raise ApiError(502, "transcription_failed", str(error)) from error
+    if gate is not None:
+        gate.record("voice")
     return jsonify({"text": text})
