@@ -23,3 +23,15 @@ class UsageEvent(Base):
     tokens_in: Mapped[int] = mapped_column(default=0)
     tokens_out: Mapped[int] = mapped_column(default=0)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+
+
+class RateHit(Base):
+    """One recorded attempt, for limits that must hold across several server processes
+    (sign-up, password reset, login failures, webhooks). Old rows are pruned as it runs."""
+
+    __tablename__ = "rate_hits"
+    __table_args__ = (Index("ix_rate_hits_key_at", "key", "at"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    key: Mapped[str] = mapped_column(String(200))
+    at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)

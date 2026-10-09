@@ -29,6 +29,21 @@ from kyvon.services import auth_service, email_service
 bp = Blueprint("auth", __name__, url_prefix="/api/v1/auth")
 
 
+ACCOUNT_LOCK_FAILURES = 10
+
+
+def _account_locked(svc, account_key: str) -> bool:
+    throttle = svc.login_throttle
+    # Reuse the throttle's own window; the account limit is higher than the per-address one.
+    return _failures(throttle, account_key) >= ACCOUNT_LOCK_FAILURES
+
+
+def _failures(throttle, key: str) -> int:
+    if hasattr(throttle, "count"):
+        return throttle.count(key)
+    return throttle.max_failures if throttle.blocked(key) else 0
+
+
 def _throttle_key(username: str) -> str:
     return f"{request.remote_addr}|{auth_service.normalize_username(username)}"
 
@@ -72,16 +87,25 @@ def login():
     svc = services()
     body = parse_json(LoginRequest)
     key = _throttle_key(body.username)
+    # Hosted: also count failures against the account itself, from any address, so a spread-out
+    # (many-IP) password guess is stopped too. Ten wrong passwords lock it for the window.
+    account_key = f"acct|{auth_service.normalize_username(body.username)}"[:150]
 
-    if svc.login_throttle.blocked(key):
+    if svc.login_throttle.blocked(key) or (
+        svc.settings.hosted and _account_locked(svc, account_key)
+    ):
         raise ApiError(429, "too_many_attempts", "Too many failed attempts. Try again later.")
 
     session = get_session()
     user = auth_service.verify_login(session, body.username, body.password)
     if user is None:
         svc.login_throttle.record_failure(key)
+        if svc.settings.hosted:
+            svc.login_throttle.record_failure(account_key)
         raise ApiError(401, "invalid_credentials", "Invalid username or password.")
     svc.login_throttle.reset(key)
+    if svc.settings.hosted:
+        svc.login_throttle.reset(account_key)
 
     ttl_days = svc.settings.token_ttl_days
     raw, token = auth_service.issue_token(
@@ -169,7 +193,7 @@ def verify_email():
 def resend_verification():
     if g.user.email is None or g.user.email_verified:
         return jsonify({"ok": True})
-    allowed, wait = services().rate_limiter.hit(f"resend:{g.user.id}", 2)
+    allowed, wait = services().auth_limiter.hit(f"resend:{g.user.id}", 2)
     if not allowed:
         raise ApiError(
             429, "rate_limited", "Please wait before asking again.", {"Retry-After": str(wait)}

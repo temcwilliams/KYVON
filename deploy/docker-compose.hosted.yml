@@ -1,0 +1,66 @@
+# A hosted KYVON on one machine: PostgreSQL, a one-off migration, web workers and ONE scheduler.
+#   cp .env.hosted.example .env.hosted      # then fill it in (never commit it)
+#   docker compose -f deploy/docker-compose.hosted.yml --env-file .env.hosted up -d --build
+# Put an HTTPS reverse proxy (Cloudflare Tunnel, Caddy, nginx) in front of port 8080.
+# Procedure and checklist: docs/HOSTED_DEPLOYMENT.md. Not run end to end by the authors: read it first.
+name: kyvon
+
+x-app: &app
+  build: ..
+  env_file: ../.env.hosted
+  environment:
+    KYVON_MODE: hosted
+    KYVON_ENV: production
+    DATABASE_URL: postgresql+psycopg://kyvon:${POSTGRES_PASSWORD}@db:5432/kyvon
+    KYVON_SKIP_MIGRATE: "1"
+  restart: unless-stopped
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: kyvon
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: kyvon
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kyvon -d kyvon"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  migrate:
+    <<: *app
+    entrypoint: ["flask", "--app", "wsgi", "kyvon", "db-upgrade"]
+    restart: "no"
+    depends_on:
+      db: {condition: service_healthy}
+
+  web:
+    <<: *app
+    environment:
+      KYVON_MODE: hosted
+      KYVON_ENV: production
+      DATABASE_URL: postgresql+psycopg://kyvon:${POSTGRES_PASSWORD}@db:5432/kyvon
+      KYVON_SKIP_MIGRATE: "1"
+      KYVON_SCHEDULER: "false"      # the scheduler service below does this
+      WEB_CONCURRENCY: "2"
+      KYVON_PROXY_HOPS: "1"         # one proxy in front: trust its X-Forwarded-For
+    ports: ["8080:8080"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+
+  scheduler:
+    <<: *app
+    entrypoint: ["flask", "--app", "wsgi", "kyvon", "scheduler"]
+    environment:
+      KYVON_MODE: hosted
+      KYVON_ENV: production
+      DATABASE_URL: postgresql+psycopg://kyvon:${POSTGRES_PASSWORD}@db:5432/kyvon
+      KYVON_SCHEDULER: "true"
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+
+volumes:
+  pgdata:

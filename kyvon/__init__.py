@@ -8,6 +8,7 @@ import re
 import time
 import uuid
 from dataclasses import dataclass, field
+from datetime import timedelta
 from http import cookiejar
 from pathlib import Path
 from typing import Any
@@ -42,7 +43,7 @@ from kyvon.tools import build_registry
 from kyvon.tools.executor import ToolExecutor
 from kyvon.tools.registry import ToolRegistry
 from kyvon.utils.error_log import ErrorLog
-from kyvon.utils.rate_limit import FailureThrottle, RateLimiter
+from kyvon.utils.rate_limit import DbFailureThrottle, DbRateLimiter, FailureThrottle, RateLimiter
 
 _REQUEST_ID = re.compile(r"^[A-Za-z0-9._-]{8,64}$")
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
@@ -75,6 +76,7 @@ class Services:
     push: Any = None  # web/native push sender (Phase 11), optional
     stt: Any = None  # SpeechToText | None
     rate_limiter: Any = None
+    auth_limiter: Any = None  # anonymous/security buckets; shared across processes when hosted
     email: Any = None  # EmailSender | None (hosted accounts)
     stripe: Any = None  # StripeClient | None (hosted billing)
     account_deletion_hooks: list = field(default_factory=list)
@@ -150,6 +152,11 @@ def create_app(
         rate_limiter=RateLimiter(),
         http=_outbound_session(),
     )
+    container.auth_limiter = container.rate_limiter
+    if settings.hosted:
+        # Several worker processes must agree on how many attempts someone has made.
+        container.auth_limiter = DbRateLimiter(container.session_factory)
+        container.login_throttle = DbFailureThrottle(container.session_factory)
     container.hermes = build_hermes(settings, container.http)
     container.push = build_push(settings, container.http)
     container.stt = stt or (
@@ -184,7 +191,13 @@ def create_app(
     container.agent_service = AgentService(container)
     with container.session_factory() as startup_session:
         try:
-            container.agent_service.recover_orphans(startup_session)
+            # Hosted: other workers may be mid-run, so only close runs too old to still be alive.
+            container.agent_service.recover_orphans(
+                startup_session,
+                stale_after=timedelta(seconds=settings.agent_timeout_cap_seconds * 2)
+                if settings.hosted
+                else None,
+            )
         except Exception:  # the database may not be migrated yet (e.g. running db-upgrade)
             startup_session.rollback()
     app.extensions["kyvon"] = container

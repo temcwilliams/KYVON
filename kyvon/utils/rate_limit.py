@@ -5,6 +5,7 @@ from __future__ import annotations
 import threading
 import time
 from collections.abc import Callable
+from datetime import datetime, timedelta
 
 
 class FailureThrottle:
@@ -30,9 +31,12 @@ class FailureThrottle:
             self._failures.pop(key, None)
         return recent
 
-    def blocked(self, key: str) -> bool:
+    def count(self, key: str) -> int:
         with self._lock:
-            return len(self._recent(key)) >= self.max_failures
+            return len(self._recent(key))
+
+    def blocked(self, key: str) -> bool:
+        return self.count(key) >= self.max_failures
 
     def record_failure(self, key: str) -> None:
         with self._lock:
@@ -70,3 +74,106 @@ class RateLimiter:
                 for stale in [k for k, v in self._hits.items() if not v or v[-1] <= now - window]:
                     del self._hits[stale]
             return True, 0
+
+
+class DbRateLimiter:
+    """Sliding-window limiter stored in the database, so every server process shares one count.
+
+    Same ``hit`` interface as RateLimiter. A hit costs one small INSERT, so it is used for the
+    security-sensitive anonymous endpoints, not for every authenticated API call.
+    """
+
+    def __init__(self, session_factory, *, clock: Callable[[], datetime] | None = None):
+        from kyvon.db import utcnow
+
+        self._sessions = session_factory
+        self._now = clock or utcnow
+        self._calls = 0
+
+    def hit(self, key: str, limit: int, window: float = 60.0) -> tuple[bool, int]:
+        from sqlalchemy import func, select
+
+        from kyvon.models import RateHit
+
+        now = self._now()
+        since = now - timedelta(seconds=window)
+        key = key[:200]
+        with self._sessions() as session:
+            rows = session.execute(
+                select(func.count(), func.min(RateHit.at)).where(
+                    RateHit.key == key, RateHit.at > since
+                )
+            ).one()
+            count, oldest = rows
+            if count >= limit:
+                wait = int((oldest + timedelta(seconds=window) - now).total_seconds()) + 1
+                return False, max(1, wait)
+            session.add(RateHit(key=key, at=now))
+            session.commit()
+            self._calls += 1
+            if self._calls % 200 == 0:
+                self._prune(session, now - timedelta(hours=2))
+        return True, 0
+
+    @staticmethod
+    def _prune(session, before) -> None:
+        from sqlalchemy import delete
+
+        from kyvon.models import RateHit
+
+        session.execute(delete(RateHit).where(RateHit.at < before))
+        session.commit()
+
+
+class DbFailureThrottle:
+    """The login failure throttle (see FailureThrottle), shared across processes."""
+
+    def __init__(
+        self,
+        session_factory,
+        max_failures: int = 5,
+        window_seconds: int = 900,
+        *,
+        clock: Callable[[], datetime] | None = None,
+    ):
+        from kyvon.db import utcnow
+
+        self._sessions = session_factory
+        self.max_failures = max_failures
+        self.window = window_seconds
+        self._now = clock or utcnow
+
+    def count(self, key: str) -> int:
+        from sqlalchemy import func, select
+
+        from kyvon.models import RateHit
+
+        since = self._now() - timedelta(seconds=self.window)
+        with self._sessions() as session:
+            return int(
+                session.scalar(
+                    select(func.count()).where(
+                        RateHit.key == f"fail:{key}"[:200], RateHit.at > since
+                    )
+                )
+                or 0
+            )
+
+    def blocked(self, key: str) -> bool:
+        return self.count(key) >= self.max_failures
+
+    def record_failure(self, key: str) -> None:
+        from kyvon.models import RateHit
+
+        with self._sessions() as session:
+            session.add(RateHit(key=f"fail:{key}"[:200], at=self._now()))
+            session.commit()
+
+    def reset(self, key: str) -> None:
+        from sqlalchemy import delete
+
+        from kyvon.models import RateHit
+
+        with self._sessions() as session:
+            session.execute(delete(RateHit).where(RateHit.key == f"fail:{key}"[:200]))
+            session.commit()

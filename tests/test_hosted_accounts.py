@@ -563,3 +563,147 @@ def test_doctor_flags_a_hosted_production_setup_without_email(tmp_path):
     results = run_checks(settings, svc.session_factory, env_file=None)
     failures = [c.message for c in results if c.level == FAIL]
     assert any("outgoing email" in message for message in failures)
+
+
+# ------------------------------------------------- shared limits (hosted)
+
+
+def test_hosted_mode_uses_database_backed_limits_and_personal_mode_does_not(hosted, app):
+    from kyvon.utils.rate_limit import (
+        DbFailureThrottle,
+        DbRateLimiter,
+        FailureThrottle,
+        RateLimiter,
+    )
+
+    h = hosted.extensions["kyvon"]
+    assert isinstance(h.auth_limiter, DbRateLimiter) and isinstance(
+        h.login_throttle, DbFailureThrottle
+    )
+    p = app.extensions["kyvon"]
+    assert isinstance(p.auth_limiter, RateLimiter) and isinstance(p.login_throttle, FailureThrottle)
+
+
+def test_two_server_processes_share_one_count(hosted):
+    """Separate limiter objects (as in separate worker processes) over one database."""
+    from kyvon.utils.rate_limit import DbRateLimiter
+
+    factory = hosted.extensions["kyvon"].session_factory
+    worker_a, worker_b = DbRateLimiter(factory), DbRateLimiter(factory)
+    assert worker_a.hit("signup:1.2.3.4", 3)[0] and worker_b.hit("signup:1.2.3.4", 3)[0]
+    assert worker_a.hit("signup:1.2.3.4", 3)[0]
+    allowed, wait = worker_b.hit("signup:1.2.3.4", 3)
+    assert allowed is False and 1 <= wait <= 61
+    assert worker_a.hit("signup:9.9.9.9", 3)[0]  # other addresses are separate
+
+
+def test_the_window_expires_and_old_rows_are_pruned(hosted):
+    from kyvon.models import RateHit
+    from kyvon.utils.rate_limit import DbRateLimiter
+
+    factory = hosted.extensions["kyvon"].session_factory
+    clock = {"now": utcnow()}
+    limiter = DbRateLimiter(factory, clock=lambda: clock["now"])
+    assert limiter.hit("k", 1)[0] and not limiter.hit("k", 1)[0]
+    clock["now"] += timedelta(seconds=61)
+    assert limiter.hit("k", 1)[0]
+    clock["now"] += timedelta(hours=3)
+    with factory() as s:
+        limiter._prune(s, clock["now"] - timedelta(hours=2))
+        assert s.scalars(select(RateHit)).all() == []
+
+
+def test_ten_wrong_passwords_from_different_addresses_lock_the_account(hosted):
+    make_verified(hosted, "target@example.com")
+    for i in range(10):
+        client = hosted.test_client()
+        response = client.post(
+            "/api/v1/auth/login",
+            json={"username": "target@example.com", "password": "wrong password!"},
+            environ_overrides={"REMOTE_ADDR": f"10.0.0.{i + 1}"},
+        )
+        assert response.status_code == 401
+    locked = hosted.test_client().post(
+        "/api/v1/auth/login",
+        json={"username": "target@example.com", "password": PASSWORD},
+        environ_overrides={"REMOTE_ADDR": "10.9.9.9"},
+    )
+    assert locked.status_code == 429  # even the right password waits out the lock
+    other = make_verified(hosted, "bystander@example.com")
+    assert other and login(hosted.test_client(), "bystander@example.com")
+
+
+def test_a_successful_login_clears_the_failure_count(hosted):
+    make_verified(hosted, "me@example.com")
+    client = hosted.test_client()
+    for _ in range(4):
+        client.post(
+            "/api/v1/auth/login", json={"username": "me@example.com", "password": "wrong password!"}
+        )
+    assert (
+        client.post(
+            "/api/v1/auth/login", json={"username": "me@example.com", "password": PASSWORD}
+        ).status_code
+        == 200
+    )
+    for _ in range(4):
+        client.post(
+            "/api/v1/auth/login", json={"username": "me@example.com", "password": "wrong password!"}
+        )
+    assert (
+        client.post(
+            "/api/v1/auth/login", json={"username": "me@example.com", "password": PASSWORD}
+        ).status_code
+        == 200
+    )
+
+
+# --------------------------------------------------- several workers (hosted)
+
+
+def test_a_hosted_restart_only_closes_agent_runs_too_old_to_be_alive(hosted):
+    from kyvon.models import AgentRun
+
+    svc = hosted.extensions["kyvon"]
+    uid = make_verified(hosted, "a@example.com")
+    with svc.session_factory() as s:
+        fresh = AgentRun(
+            user_id=uid, agent="researcher", goal="goal goal", status="running", created_at=utcnow()
+        )
+        old = AgentRun(
+            user_id=uid,
+            agent="researcher",
+            goal="goal goal",
+            status="running",
+            created_at=utcnow() - timedelta(hours=1),
+        )
+        s.add_all([fresh, old])
+        s.commit()
+        closed = svc.agent_service.recover_orphans(s, stale_after=timedelta(minutes=10))
+        assert closed == 1
+        assert s.get(AgentRun, fresh.id).status == "running"
+        assert s.get(AgentRun, old.id).status == "failed"
+        assert svc.agent_service.recover_orphans(s) == 1  # personal mode closes everything left
+
+
+def test_the_scheduler_command_runs_until_signalled(hosted, monkeypatch):
+    import threading
+
+    started = []
+    svc = hosted.extensions["kyvon"]
+    monkeypatch.setattr(svc.scheduler, "start", lambda: started.append("start"))
+    monkeypatch.setattr(svc.scheduler, "stop", lambda: started.append("stop"))
+    monkeypatch.setattr(threading.Event, "wait", lambda self, timeout=None: True)
+    monkeypatch.setattr("signal.signal", lambda *a, **k: None)
+    result = _cli(hosted, "scheduler")
+    assert result.exit_code == 0 and started == ["start", "stop"]
+    assert "Scheduler stopped" in result.output
+
+
+def test_backup_of_a_server_database_points_to_pg_dump():
+    import click
+
+    from kyvon.cli import _sqlite_path
+
+    with pytest.raises(click.ClickException, match="pg_dump"):
+        _sqlite_path("postgresql+psycopg://u:p@db/kyvon")

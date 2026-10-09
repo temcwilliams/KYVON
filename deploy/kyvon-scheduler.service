@@ -1,0 +1,29 @@
+# Hosted deployments: run the reminder/automation scheduler as its own single process.
+# Set KYVON_SCHEDULER=false on the web workers (in the shared .env) and enable only this unit.
+#   sudo cp deploy/kyvon-scheduler.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now kyvon-scheduler
+# Full procedure: docs/HOSTED_DEPLOYMENT.md
+[Unit]
+Description=KYVON scheduler
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=kyvon
+WorkingDirectory=/opt/kyvon
+EnvironmentFile=/opt/kyvon/.env
+Environment=KYVON_ENV=production
+Environment=KYVON_SCHEDULER=true
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/kyvon/.venv/bin/flask --app wsgi kyvon scheduler
+KillSignal=SIGTERM
+TimeoutStopSec=40
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

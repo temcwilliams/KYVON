@@ -41,7 +41,14 @@ class Base(DeclarativeBase):
 
 
 def make_engine(url: str) -> Engine:
-    engine = create_engine(url)
+    if url.startswith("sqlite"):
+        engine = create_engine(url)
+    else:
+        # A server database (Postgres): a bounded pool, and a liveness check before each use so a
+        # restarted database or an idle-closed connection does not surface as a user-visible error.
+        engine = create_engine(
+            url, pool_size=10, max_overflow=20, pool_recycle=1800, pool_pre_ping=True
+        )
     if engine.dialect.name == "sqlite":
 
         @event.listens_for(engine, "connect")
