@@ -45,6 +45,26 @@ jobs:
       - name: Build image
         run: docker build -t kyvon:ci .
 
+  ios:
+    # The Swift client has never been compiled locally (no usable Xcode on the dev machine), so
+    # GitHub's macOS runners are where it gets built and tested.
+    runs-on: macos-14
+    defaults:
+      run:
+        working-directory: ios
+    steps:
+      - uses: actions/checkout@v4
+      - name: Swift version
+        run: swift --version
+      - name: Build the package (macOS)
+        run: swift build
+      - name: Unit tests (API client, SSE, models)
+        run: swift test
+      - name: Build for the iOS simulator
+        run: |
+          xcodebuild -scheme KYVONApp -destination 'generic/platform=iOS Simulator' \
+            -skipPackagePluginValidation build CODE_SIGNING_ALLOWED=NO
+
   secrets:
     runs-on: ubuntu-24.04
     steps:
