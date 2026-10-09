@@ -61,7 +61,7 @@ extension View {
     @ViewBuilder func plainTextInput(url: Bool = false) -> some View {
         #if os(iOS)
         if url {
-            self.textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.URL)
+            self.textContentType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.URL)
         } else {
             self.textInputAutocapitalization(.never).autocorrectionDisabled()
         }

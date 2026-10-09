@@ -54,7 +54,6 @@ struct ServerView: View {
                     subtitle: "Enter the address of your KYVON server. It must start with https://.",
                     error: model.errorText) {
             TextField("https://kyvon.example.com", text: $address)
-                .textContentType(.URL)
                 .plainTextInput(url: true)
                 .textFieldStyle(.roundedBorder)
                 .submitLabel(.continue)
