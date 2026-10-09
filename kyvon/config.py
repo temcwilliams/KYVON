@@ -52,6 +52,7 @@ _INTS: dict[str, tuple[str, int, int, int]] = {
     "reset_ttl_minutes": ("KYVON_RESET_TTL_MINUTES", 60, 5, 1440),
     "auth_rate_per_minute": ("KYVON_AUTH_RATE_PER_MINUTE", 10, 1, 10_000),
     # Monthly allowances per plan (hosted mode). Tokens are the real cost control.
+    "billing_grace_days": ("KYVON_BILLING_GRACE_DAYS", 3, 0, 60),
     "quota_free_messages": ("KYVON_QUOTA_FREE_MESSAGES", 30, 0, 10_000_000),
     "quota_free_tokens": ("KYVON_QUOTA_FREE_TOKENS", 60_000, 0, 1_000_000_000),
     "quota_free_voice": ("KYVON_QUOTA_FREE_VOICE", 10, 0, 10_000_000),
@@ -93,6 +94,10 @@ _STRINGS: dict[str, tuple[str, str]] = {
     "smtp_user": ("KYVON_SMTP_USER", ""),
     "smtp_password": ("KYVON_SMTP_PASSWORD", ""),
     "terms_version": ("KYVON_TERMS_VERSION", "1"),
+    "stripe_secret_key": ("STRIPE_SECRET_KEY", ""),
+    "stripe_webhook_secret": ("STRIPE_WEBHOOK_SECRET", ""),
+    "stripe_price_id": ("STRIPE_PRICE_ID", ""),
+    "price_label": ("KYVON_PRICE_LABEL", ""),
 }
 
 _TRUE = ("1", "true", "yes", "on")
@@ -187,6 +192,11 @@ class Settings:
     reset_ttl_minutes: int = 60
     auth_rate_per_minute: int = 10
     terms_version: str = "1"
+    billing_grace_days: int = 3
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_price_id: str = ""
+    price_label: str = ""  # shown next to the upgrade button, e.g. "$9 / month"
     quota_free_messages: int = 30
     quota_free_tokens: int = 60_000
     quota_free_voice: int = 10
@@ -233,6 +243,15 @@ class Settings:
         return self.hosted and self.signup_open
 
     @property
+    def billing_configured(self) -> bool:
+        return bool(
+            self.hosted
+            and self.stripe_secret_key
+            and self.stripe_webhook_secret
+            and self.stripe_price_id
+        )
+
+    @property
     def email_configured(self) -> bool:
         return bool(self.smtp_host and self.email_from)
 
@@ -245,7 +264,7 @@ class Settings:
         return (
             f"Settings(env={self.env!r}, model={self.model!r}, web_model={self.web_model!r}, "
             f"host={self.host!r}, port={self.port}, data_dir={str(self.data_dir)!r}, "
-            "groq_api_key='***')"
+            "groq_api_key='***')"  # also hides the SMTP password and Stripe keys
         )
 
     @classmethod

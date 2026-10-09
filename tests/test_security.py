@@ -25,6 +25,7 @@ PUBLIC_ENDPOINTS = {
     "auth.verify_email",  # one-time emailed token
     "auth.forgot_password",
     "auth.reset_password",  # one-time emailed token
+    "billing.webhook",  # called by Stripe: authenticated by its signature, not a session
     "calendar.callback",  # identified by a one-time OAuth state
     "static",
     "index",
@@ -383,6 +384,7 @@ def test_outbound_http_is_confined_to_known_modules():
         "__init__.py",  # creates the shared session
         "integrations/geocode_nominatim.py",
         "integrations/google_calendar.py",
+        "integrations/stripe_billing.py",
         "integrations/weather_openmeteo.py",
         "integrations/webpush.py",
         "llm/openai_compat.py",
@@ -390,7 +392,13 @@ def test_outbound_http_is_confined_to_known_modules():
 
 
 def test_outbound_requests_never_follow_redirects():
-    for name in ("geocode_nominatim", "google_calendar", "webpush", "weather_openmeteo"):
+    for name in (
+        "geocode_nominatim",
+        "google_calendar",
+        "stripe_billing",
+        "webpush",
+        "weather_openmeteo",
+    ):
         text = (SOURCE / "integrations" / f"{name}.py").read_text()
         assert (
             text.count("allow_redirects=False")

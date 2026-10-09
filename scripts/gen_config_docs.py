@@ -43,6 +43,8 @@ SECRETS = {
     "KYVON_VAPID_PRIVATE_KEY",
     "GROQ_API_KEY",
     "KYVON_SMTP_PASSWORD",
+    "STRIPE_SECRET_KEY",
+    "STRIPE_WEBHOOK_SECRET",
 }
 NOTES = {
     "PORT": "Port gunicorn / `python app.py` listens on. Keep 8080 for the Cloudflare Tunnel.",
@@ -77,6 +79,11 @@ NOTES = {
     "KYVON_VERIFY_TTL_HOURS": "How long an email verification link stays valid.",
     "KYVON_RESET_TTL_MINUTES": "How long a password reset link stays valid.",
     "KYVON_AUTH_RATE_PER_MINUTE": "Sign-up, password reset and verification requests allowed per client IP per minute.",
+    "STRIPE_SECRET_KEY": "Stripe secret key (hosted mode billing). Secret.",
+    "STRIPE_WEBHOOK_SECRET": "Signing secret of the Stripe webhook endpoint (`/api/v1/billing/webhook`). Secret.",
+    "STRIPE_PRICE_ID": "Stripe Price id of the paid subscription.",
+    "KYVON_PRICE_LABEL": "Text shown beside the upgrade button, such as `$9 / month`.",
+    "KYVON_BILLING_GRACE_DAYS": "Days a past-due subscription keeps the paid plan before dropping to free.",
     "KYVON_QUOTA_FREE_MESSAGES": "Hosted: chat messages per month on the free plan.",
     "KYVON_QUOTA_FREE_TOKENS": "Hosted: model tokens per month on the free plan (the real cost cap).",
     "KYVON_QUOTA_FREE_VOICE": "Hosted: voice transcriptions per month on the free plan.",
