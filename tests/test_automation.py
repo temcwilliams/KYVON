@@ -467,7 +467,11 @@ def test_background_thread_lifecycle(svc, session, owner):
     try:
         assert scheduler.running
         deadline = time.time() + 5
-        while time.time() < deadline and not session.scalar(select(AutomationRun.id)):
+        # A run row is created as "running" and only later becomes "succeeded": wait for the state
+        # being asserted, not merely for the row to exist.
+        while (
+            time.time() < deadline and session.scalar(select(AutomationRun.status)) != "succeeded"
+        ):
             time.sleep(0.05)
             session.expire_all()
         assert session.scalar(select(AutomationRun.status)) == "succeeded"

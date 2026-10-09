@@ -749,3 +749,17 @@ def test_moderation_endpoints_refuse_ordinary_users_and_dangerous_targets(http, 
     assert boss.post(f"/api/v1/admin/users/{other_boss}/disable").status_code == 200
     second = login(http, "boss@example.com")
     assert second.post(f"/api/v1/admin/users/{user}/disable").status_code == 200
+
+
+def test_a_simultaneous_duplicate_signup_gets_the_normal_answer_not_a_500(
+    http, mail, hosted, monkeypatch
+):
+    """Both requests pass the 'is it taken?' check, then one loses at the unique index."""
+    make_verified(hosted, "race@example.com")
+    monkeypatch.setattr(auth_service, "find_by_email", lambda session, email: None)
+    response = signup(http, email="race@example.com")
+    assert response.status_code == 202
+    assert response.get_json()["message"].startswith("Check your email")
+    with hosted.extensions["kyvon"].session_factory() as s:
+        assert len(list(s.scalars(select(User).where(User.email == "race@example.com")))) == 1
+    assert [m[1] for m in mail.to("race@example.com")] == ["You already have a KYVON account"]

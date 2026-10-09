@@ -172,9 +172,16 @@ def signup():
             svc.email, email, email_service.already_registered_message(svc.settings)
         )
         return jsonify(GENERIC_SIGNUP), 202
-    user = auth_service.create_user(
-        session, email=email, password=body.password, terms_version=svc.settings.terms_version
-    )
+    try:
+        user = auth_service.create_user(
+            session, email=email, password=body.password, terms_version=svc.settings.terms_version
+        )
+    except auth_service.AuthError:
+        # Lost a race with another sign-up for the same address: answer exactly as for any duplicate.
+        email_service.deliver(
+            svc.email, email, email_service.already_registered_message(svc.settings)
+        )
+        return jsonify(GENERIC_SIGNUP), 202
     _send_verification(user)
     return jsonify(GENERIC_SIGNUP), 202
 
