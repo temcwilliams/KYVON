@@ -1,4 +1,5 @@
 import pytest
+from cryptography.fernet import Fernet
 
 # ---------------------------------------------------------------- new app factory
 
@@ -30,7 +31,7 @@ def fake_llm():
     return FakeLLM()
 
 
-TEST_ENCRYPTION_KEY = "Ip9tPuY8_kM4PfVv3n1bL0HqUu0RzE7c0mV2xX3kQYc="  # test-only Fernet key
+TEST_ENCRYPTION_KEY = Fernet.generate_key().decode()  # fresh per run; never committed
 TEST_USERNAME = "owner"
 TEST_PASSWORD = "correct horse battery"  # test-only value
 
