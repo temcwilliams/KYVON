@@ -64,6 +64,12 @@ code{font-family:var(--mono);font-size:.88em;background:#0d1530;border:1px solid
 table{width:100%;border-collapse:collapse;font-size:.95rem}
 th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}
 th{font-family:var(--mono);font-size:.74rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);font-weight:500}
+#clipform{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 4px}
+#clipform input{flex:1 1 260px;min-width:0;padding:13px 14px;border-radius:12px;border:1px solid var(--line);background:#070b18;color:var(--text);font:inherit}
+#clipform input:focus{outline:2px solid var(--cyan);outline-offset:1px}
+#clipform .btn{cursor:pointer;font:inherit;font-weight:600}
+.msg{flex-basis:100%;margin:0;min-height:1.4em;font-size:.92rem;color:#ff9b9b}
+.msg.ok{color:var(--cyan)}
 footer{margin:56px 0 40px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:.85rem}
 .sr{position:absolute;left:-9999px}
 @media (prefers-reduced-motion:reduce){.orb{animation:none}html{scroll-behavior:auto}.btn{transition:none}}
@@ -84,10 +90,10 @@ footer{margin:56px 0 40px;padding-top:20px;border-top:1px solid var(--line);colo
   <h1>Your assistant.<br>Your rules.</h1>
   <p class="lead">Chat, tasks, memory and reminders in one place. KYVON asks your permission before it changes anything.</p>
   <div class="cta">
-    <a class="btn primary" href="https://github.com/temcwilliams/jarvis-assistant/releases/latest/download/KYVON-unsigned.ipa">Download for iPhone</a>
-    <a class="btn" href="#install">How to install</a>
+    <a class="btn primary" href="#webclip">Install on iPhone</a>
+    <a class="btn" href="https://github.com/temcwilliams/kyvon/releases/latest/download/KYVON-unsigned.ipa">Download the .ipa</a>
   </div>
-  <p class="fine">Free sideload for iOS 15 and later. Not on the App Store.</p>
+  <p class="fine">The iPhone install needs no extra apps and no computer. The .ipa is for sideloading.</p>
   <div class="chips" id="features" aria-label="Features">
     <span class="chip">STREAMING CHAT</span><span class="chip">TASKS</span><span class="chip">MEMORY YOU CONTROL</span>
     <span class="chip">REMINDERS</span><span class="chip">VOICE</span><span class="chip">APPROVE EVERY ACTION</span>
@@ -96,32 +102,41 @@ footer{margin:56px 0 40px;padding-top:20px;border-top:1px solid var(--line);colo
 
 <section id="install">
   <h2>Install</h2>
-  <div class="warn" role="note"><strong>Early release.</strong> The iPhone app is built and unit-tested automatically but has not been tried on a real phone yet. Expect rough edges.</div>
-  <div class="grid">
-    <div class="card">
-      <div class="kicker">Windows or Mac · free</div>
-      <h3>Install the iPhone app</h3>
-      <ol>
-        <li>Download the file with the button above.</li>
-        <li>On your computer install <strong>iTunes</strong> (from apple.com) and <strong>Sideloadly</strong> or <strong>AltStore</strong>.</li>
-        <li>Plug in your iPhone, tap Trust, then drag the <code>.ipa</code> into Sideloadly and sign in with your Apple ID.</li>
-        <li>On the phone open Settings, General, VPN and Device Management, tap your Apple ID, then Trust.</li>
-        <li>Open KYVON, accept the data notice, and enter the server address you were given.</li>
-      </ol>
-      <div class="note">Free Apple IDs expire the app after <strong>7 days</strong>: install it again to renew. Up to 3 sideloaded apps, and no push notifications. The tool asks for your Apple ID, so read its privacy notes first.</div>
-    </div>
-    <div class="card">
-      <div class="kicker">No computer needed · free</div>
-      <h3>Use the web app</h3>
-      <ol>
-        <li>Open your KYVON address in Safari on your iPhone.</li>
-        <li>Sign in with your username and password.</li>
-        <li>Tap Share, then <strong>Add to Home Screen</strong>.</li>
-      </ol>
-      <div class="note">It then opens full screen like an app, with chat, tasks, memory, voice and approvals.</div>
-    </div>
+  <div class="warn" role="note"><strong>Early release.</strong> Nothing here has been tried on a real phone yet, so expect rough edges.</div>
+
+  <div class="card" id="webclip">
+    <div class="kicker">iPhone · free · no extra apps</div>
+    <h3>Install KYVON on your Home Screen</h3>
+    <p style="color:var(--muted);margin-top:6px">Open this page in <strong>Safari on your iPhone</strong>, type your KYVON server address, and tap the button. Your address stays on your phone: this page builds the file itself and sends it nowhere.</p>
+    <form id="clipform" novalidate>
+      <label for="serverurl" class="sr">Your KYVON server address</label>
+      <input id="serverurl" name="serverurl" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://your-server.example.com" autocomplete="off">
+      <button class="btn primary" type="submit">Get the profile</button>
+      <p id="clipmsg" class="msg" role="status" aria-live="polite"></p>
+    </form>
+    <ol>
+      <li>Tap <strong>Get the profile</strong>, then <strong>Allow</strong> when Safari asks.</li>
+      <li>Open <strong>Settings</strong>. Tap <strong>Profile Downloaded</strong> near the top.</li>
+      <li>Tap <strong>Install</strong> and confirm. iOS will say the profile is "Not Signed". That is expected: it only adds a Home Screen icon.</li>
+      <li>Open the new <strong>KYVON</strong> icon and sign in.</li>
+    </ol>
+    <div class="note"><strong>If nothing downloads:</strong> open your server address in Safari, tap Share, then <strong>Add to Home Screen</strong>. It gives the same result. This is the web app in an icon, not the native app, and the profile route is untested on a real phone.</div>
   </div>
-  <p class="fine">If the download button says "not found", the first release has not been published yet. Check the <a href="https://github.com/temcwilliams/jarvis-assistant/releases">releases page</a>.</p>
+
+  <div class="card" style="margin-top:16px">
+    <div class="kicker">Windows or Mac · free · needs a tool</div>
+    <h3>Sideload the native app</h3>
+    <p style="color:var(--muted);margin-top:6px">Apple only lets signed apps install, and a free Apple ID can only sign through a tool like Sideloadly or AltStore. This is the only path to the native app without a paid developer account.</p>
+    <ol>
+      <li><a href="https://github.com/temcwilliams/kyvon/releases/latest/download/KYVON-unsigned.ipa">Download the .ipa</a>.</li>
+      <li>On your computer install <strong>iTunes</strong> (from apple.com) and <strong>Sideloadly</strong> or <strong>AltStore</strong>.</li>
+      <li>Plug in your iPhone, tap Trust, drag the <code>.ipa</code> into Sideloadly, and sign in with your Apple ID.</li>
+      <li>On the phone open Settings, General, VPN and Device Management, tap your Apple ID, then Trust.</li>
+      <li>Open KYVON, accept the data notice, and enter the server address you were given.</li>
+    </ol>
+    <div class="note">Free Apple IDs expire the app after <strong>7 days</strong>: install it again to renew. Up to 3 sideloaded apps, and no push notifications. The tool asks for your Apple ID, so read its privacy notes first.</div>
+  </div>
+  <p class="fine">If the .ipa link says "not found", check the <a href="https://github.com/temcwilliams/kyvon/releases">releases page</a>.</p>
 </section>
 
 <section id="compat">
@@ -139,17 +154,69 @@ footer{margin:56px 0 40px;padding-top:20px;border-top:1px solid var(--line);colo
   <h2>Privacy</h2>
   <div class="card">
     <p style="margin-top:0">Your chats, tasks and memories live on your own server. The app has no ads, analytics or tracking. To write replies, the server sends your messages to an AI provider (Groq by default), and voice recordings go there to be transcribed. The app asks for your agreement before it connects.</p>
-    <p style="margin-bottom:0">Read the <a href="https://github.com/temcwilliams/jarvis-assistant/blob/main/docs/legal/PRIVACY_POLICY.md">privacy policy</a> and the <a href="https://github.com/temcwilliams/jarvis-assistant/blob/main/docs/legal/TERMS_OF_USE.md">terms of use</a>. AI replies can be wrong, so check anything important.</p>
+    <p style="margin-bottom:0">Read the <a href="https://github.com/temcwilliams/kyvon/blob/main/docs/legal/PRIVACY_POLICY.md">privacy policy</a> and the <a href="https://github.com/temcwilliams/kyvon/blob/main/docs/legal/TERMS_OF_USE.md">terms of use</a>. AI replies can be wrong, so check anything important.</p>
   </div>
 </section>
 
 <section>
   <h2>Help</h2>
-  <p>Questions or problems? Open an issue on the <a href="https://github.com/temcwilliams/jarvis-assistant/issues">project page</a>.</p>
+  <p>Questions or problems? Open an issue on the <a href="https://github.com/temcwilliams/kyvon/issues">project page</a>.</p>
 </section>
 </main>
 
 <footer>KYVON is an independent project. It is not made or endorsed by Apple, Groq or Google. iPhone and iOS are trademarks of Apple Inc.</footer>
 </div>
+<script>
+(function(){
+  var ICON="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";
+  var form=document.getElementById("clipform"),input=document.getElementById("serverurl"),msg=document.getElementById("clipmsg");
+  function esc(t){return String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
+  function uuid(){
+    if(window.crypto&&crypto.randomUUID)return crypto.randomUUID().toUpperCase();
+    var b=new Uint8Array(16);crypto.getRandomValues(b);b[6]=(b[6]&0x0f)|0x40;b[8]=(b[8]&0x3f)|0x80;
+    var h=Array.prototype.map.call(b,function(x){return("0"+x.toString(16)).slice(-2)}).join("");
+    return(h.slice(0,8)+"-"+h.slice(8,12)+"-"+h.slice(12,16)+"-"+h.slice(16,20)+"-"+h.slice(20)).toUpperCase();
+  }
+  function cleanUrl(text){
+    var t=(text||"").trim();
+    if(!t)return null;
+    if(!/^https?:\/\//i.test(t))t="https://"+t;
+    var u;try{u=new URL(t)}catch(e){return null}
+    if(u.protocol!=="https:"||u.hostname.indexOf(".")<0||u.username||u.password)return null;
+    return u.origin+"/";
+  }
+  window.kyvonProfile=function(url){
+    return '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict>'
+    +'<key>PayloadContent</key><array><dict>'
+    +'<key>FullScreen</key><true/><key>IsRemovable</key><true/><key>Precomposed</key><true/>'
+    +'<key>Icon</key><data>'+ICON+'</data>'
+    +'<key>Label</key><string>KYVON</string><key>URL</key><string>'+esc(url)+'</string>'
+    +'<key>PayloadDisplayName</key><string>KYVON</string>'
+    +'<key>PayloadIdentifier</key><string>app.kyvon.webclip.'+uuid()+'</string>'
+    +'<key>PayloadType</key><string>com.apple.webClip.managed</string>'
+    +'<key>PayloadUUID</key><string>'+uuid()+'</string><key>PayloadVersion</key><integer>1</integer>'
+    +'</dict></array>'
+    +'<key>PayloadDisplayName</key><string>KYVON</string>'
+    +'<key>PayloadDescription</key><string>Adds a KYVON icon to your Home Screen.</string>'
+    +'<key>PayloadIdentifier</key><string>app.kyvon.profile.'+uuid()+'</string>'
+    +'<key>PayloadRemovalDisallowed</key><false/><key>PayloadType</key><string>Configuration</string>'
+    +'<key>PayloadUUID</key><string>'+uuid()+'</string><key>PayloadVersion</key><integer>1</integer>'
+    +'</dict></plist>';
+  };
+  window.kyvonCleanUrl=cleanUrl;
+  if(!form)return;
+  input.addEventListener("input",function(){msg.textContent="";msg.className="msg"});
+  form.addEventListener("submit",function(e){
+    e.preventDefault();
+    var url=cleanUrl(input.value);
+    if(!url){msg.className="msg";msg.textContent="Enter your server address, starting with https:// (for example https://kyvon.example.com).";input.focus();return}
+    var blob=new Blob([window.kyvonProfile(url)],{type:"application/x-apple-aspen-config"});
+    var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="KYVON.mobileconfig";
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(a.href)},10000);
+    msg.className="msg ok";msg.textContent="Profile ready. If Safari asks, tap Allow, then open Settings and tap Profile Downloaded.";
+  });
+})();
+</script>
 </body>
 </html>

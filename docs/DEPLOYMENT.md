@@ -27,7 +27,7 @@ throttle and rate limits live in process memory.
 
 ```bash
 cd /home/traxc93/kyvon-assistant
-git remote -v                      # confirm it is temcwilliams/jarvis-assistant
+git remote -v                      # confirm it is temcwilliams/kyvon
 git status                         # should be clean
 systemctl cat kyvon.service        # note ExecStart and where GROQ_API_KEY comes from
 ls -la data/ 2>/dev/null           # the prototype's memory file, if any
