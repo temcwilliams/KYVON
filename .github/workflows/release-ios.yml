@@ -1,6 +1,7 @@
 name: Release iOS (unsigned)
 
 # Publishes KYVON-unsigned.ipa as a public GitHub Release so the website's download link works.
+# It must be a normal "latest" release: the link uses releases/latest/download, which skips pre-releases.
 # Run it by pushing a tag such as v1.0.0, or from the Actions tab ("Run workflow").
 on:
   push:
@@ -44,4 +45,4 @@ jobs:
           gh release create "$TAG" ios/KYVON-unsigned.ipa \
             --title "KYVON $TAG (unsigned, for sideloading)" \
             --notes "Unsigned iPhone/iPad build for sideloading with a free Apple ID (Sideloadly or AltStore). Not tested on a real device. See the website for steps." \
-            --prerelease
+            --latest
