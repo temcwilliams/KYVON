@@ -308,7 +308,7 @@ def test_automation_runs_listing_is_scoped(app, client, anon_client, owner):
             "Mine", "reminder", {"type": "daily", "time": "08:00"}, text="hi"
         )
         AutomationRunner(svc).execute(s, a.id, triggered_by="manual")
-        other = User(username="stranger", password_hash="x")
+        other = User(username="stranger", password_hash="x", role="admin")
         s.add(other)
         s.commit()
         raw, _ = auth_service.issue_token(s, other, name="t", ttl_days=1)

@@ -63,6 +63,19 @@ def enforce_rate(bucket: str, per_minute: int) -> None:
         )
 
 
+def enforce_ip_rate(bucket: str, per_minute: int | None = None) -> None:
+    """Limit anonymous endpoints (sign-up, password reset) per client IP; raises 429."""
+    limit = per_minute or services().settings.auth_rate_per_minute
+    allowed, wait = services().rate_limiter.hit(f"{bucket}:{request.remote_addr}", limit)
+    if not allowed:
+        raise ApiError(
+            429,
+            "rate_limited",
+            "Too many requests. Please try again soon.",
+            {"Retry-After": str(wait)},
+        )
+
+
 def _check_origin() -> None:
     """Defence in depth for cookie sessions: a browser-sent Origin must be this site.
 
@@ -111,6 +124,20 @@ def login_required(view):
         g.user = token.user
         user_id_var.set(token.user.id)
         enforce_rate("api", services().settings.rate_limit_api_per_minute)
+        return view(*args, **kwargs)
+
+    return wrapper
+
+
+def admin_required(view):
+    """Signed in *and* an admin. In a multi-user service ordinary accounts must never see
+    server-wide status, errors or other people's run history."""
+
+    @wraps(view)
+    @login_required
+    def wrapper(*args, **kwargs):
+        if not g.user.is_admin:
+            raise ApiError(403, "forbidden", "That needs an administrator account.")
         return view(*args, **kwargs)
 
     return wrapper

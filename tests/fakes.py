@@ -287,3 +287,30 @@ class FakeSTT:
         if self.error:
             raise self.error
         return self.text
+
+
+class FakeEmail:
+    """Collects outgoing email instead of sending it. ``token(kind)`` pulls the emailed token."""
+
+    def __init__(self):
+        self.sent: list[tuple[str, str, str]] = []
+        self.fail = False
+
+    def send(self, to, subject, body):
+        from kyvon.services.email_service import EmailError
+
+        if self.fail:
+            raise EmailError("simulated failure")
+        self.sent.append((to, subject, body))
+
+    def to(self, address):
+        return [m for m in self.sent if m[0] == address]
+
+    def token(self, address, kind):
+        """The token in the most recent '/#<kind>=...' link sent to ``address``."""
+        for to, _subject, body in reversed(self.sent):
+            if to == address:
+                match = re.search(rf"#{kind}=([A-Za-z0-9_-]+)", body)
+                if match:
+                    return match.group(1)
+        raise AssertionError(f"no {kind} link was emailed to {address}")

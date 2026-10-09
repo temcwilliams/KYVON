@@ -42,6 +42,7 @@ SECRETS = {
     "KYVON_HERMES_API_KEY",
     "KYVON_VAPID_PRIVATE_KEY",
     "GROQ_API_KEY",
+    "KYVON_SMTP_PASSWORD",
 }
 NOTES = {
     "PORT": "Port gunicorn / `python app.py` listens on. Keep 8080 for the Cloudflare Tunnel.",
@@ -64,6 +65,19 @@ NOTES = {
     "KYVON_TRUSTED_ORIGINS": "Comma-separated extra hosts accepted as Origin for cookie sessions.",
     "KYVON_SCHEDULER": "Run the automation scheduler inside the web process.",
     "KYVON_AUTO_TITLE_LLM": "Let the model write conversation titles.",
+    "KYVON_MODE": "`personal` (one owner, the default) or `hosted` (many users with email accounts, quotas and billing).",
+    "KYVON_SIGNUP_OPEN": "Hosted mode only: let new people sign up. Stays closed until you set this.",
+    "KYVON_PROXY_HOPS": "Number of trusted reverse proxies in front of the app, so the real client IP is used for limits.",
+    "KYVON_EMAIL_FROM": "Sender address for verification and reset emails (hosted mode).",
+    "KYVON_SMTP_HOST": "SMTP server for outgoing email (hosted mode).",
+    "KYVON_SMTP_PORT": "SMTP port.",
+    "KYVON_SMTP_USER": "SMTP username.",
+    "KYVON_SMTP_PASSWORD": "SMTP password. Secret.",
+    "KYVON_SMTP_STARTTLS": "Use STARTTLS on the SMTP connection.",
+    "KYVON_VERIFY_TTL_HOURS": "How long an email verification link stays valid.",
+    "KYVON_RESET_TTL_MINUTES": "How long a password reset link stays valid.",
+    "KYVON_AUTH_RATE_PER_MINUTE": "Sign-up, password reset and verification requests allowed per client IP per minute.",
+    "KYVON_TERMS_VERSION": "Version label recorded when someone accepts the terms. Bump it when the terms change.",
 }
 
 

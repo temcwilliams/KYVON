@@ -31,11 +31,39 @@ class EnvironmentRequest(_Strict):
 
 
 class LoginRequest(_Strict):
-    username: str = Field(min_length=1, max_length=64)
+    username: str = Field(min_length=1, max_length=254)  # a username, or an email (hosted)
     password: str = Field(min_length=1, max_length=1024)
     device_name: str = Field(default="", max_length=100)
     # True for the web client: the token goes in an HttpOnly cookie, not the body.
     cookie: bool = False
+
+
+class SignupRequest(_Strict):
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=1, max_length=1024)
+    accept_terms: bool = False
+
+
+class TokenRequest(_Strict):
+    token: str = Field(min_length=10, max_length=200)
+
+
+class EmailRequest(_Strict):
+    email: str = Field(min_length=3, max_length=254)
+
+
+class ResetPasswordRequest(_Strict):
+    token: str = Field(min_length=10, max_length=200)
+    password: str = Field(min_length=1, max_length=1024)
+
+
+class ChangePasswordRequest(_Strict):
+    current_password: str = Field(min_length=1, max_length=1024)
+    new_password: str = Field(min_length=1, max_length=1024)
+
+
+class DeleteAccountRequest(_Strict):
+    password: str = Field(min_length=1, max_length=1024)
 
 
 class MemoryCreate(_Strict):

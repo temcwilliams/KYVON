@@ -37,6 +37,8 @@ def ready():
 def status():
     svc = services()
     deep = request.args.get("deep", "").lower() in ("1", "true", "yes")
+    if deep and svc.settings.hosted and not g.user.is_admin:
+        deep = False  # a deep check makes a paid model call; not for ordinary hosted accounts
     results = run_diagnostics(
         memory_count=lambda: len(MemoryService(get_session(), g.user.id)),
         llm=svc.llm,

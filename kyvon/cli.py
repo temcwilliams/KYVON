@@ -12,11 +12,9 @@ from pathlib import Path
 import click
 from flask import current_app
 from flask.cli import AppGroup
-from sqlalchemy import select
 
 from kyvon.db import upgrade_database
 from kyvon.integrations.webpush import generate_vapid_keys
-from kyvon.models import User
 from kyvon.services import auth_service
 from kyvon.services.memory_import import MemoryImportError, import_json_memories
 from kyvon.utils.crypto import generate_key
@@ -42,17 +40,34 @@ def db_upgrade():
 
 
 @cli.command("create-user")
-@click.option("--username", prompt=True)
+@click.option("--username", default=None, help="Personal mode: the owner's username.")
+@click.option("--email", default=None, help="Hosted mode: the account's email address.")
+@click.option("--admin/--no-admin", default=False, help="Hosted mode: make this an administrator.")
 @click.option("--password-stdin", is_flag=True, help="Read the password from stdin (no prompt).")
-def create_user(username: str, password_stdin: bool):
-    """Create the owner account (only one is allowed)."""
+def create_user(username: str | None, email: str | None, admin: bool, password_stdin: bool):
+    """Create an account. Personal mode: the one owner. Hosted mode: any account, by email."""
+    hosted = _svc().settings.hosted
+    if hosted:
+        email = email or click.prompt("Email")
+    else:
+        username = username or click.prompt("Username")
     password = _read_password(password_stdin)
     with _svc().session_factory() as session:
         try:
-            user = auth_service.create_owner(session, username, password)
+            if hosted:
+                user = auth_service.create_user(
+                    session,
+                    email=email,
+                    password=password,
+                    role="admin" if admin else "user",
+                    verified=True,  # created by an operator, so there is no mailbox to confirm
+                )
+            else:
+                user = auth_service.create_owner(session, username, password)
         except auth_service.AuthError as error:
             raise click.ClickException(str(error)) from error
-    click.echo(f"Created owner account '{user.username}'.")
+        label = "administrator" if user.role == "admin" else "user"
+    click.echo(f"Created {label} account '{user.email or user.username}'.")
 
 
 @cli.command("set-password")
@@ -71,12 +86,15 @@ def set_password(username: str, password_stdin: bool):
 
 
 @cli.command("revoke-tokens")
-def revoke_tokens():
-    """Sign out every device."""
+@click.option("--username", default=None, help="Which account (needed when there are several).")
+def revoke_tokens(username: str | None):
+    """Sign out every device of an account."""
     with _svc().session_factory() as session:
-        user = session.scalar(select(User).limit(1))
+        user = auth_service.find_user(session, username)
         if user is None:
-            raise click.ClickException("No owner account exists.")
+            raise click.ClickException(
+                "Name the account with --username (none, or several, exist)."
+            )
         count = auth_service.revoke_all_tokens(session, user.id)
     click.echo(f"Revoked {count} token(s).")
 
@@ -88,13 +106,16 @@ def revoke_tokens():
     type=click.Path(path_type=Path),
     help="JSON memory file (default: <data dir>/kyvon_memory.json).",
 )
-def import_memories(file_: Path | None):
+@click.option("--username", default=None, help="Which account (needed when there are several).")
+def import_memories(file_: Path | None, username: str | None):
     """Import the prototype's JSON memories. Safe to re-run; the file is not modified."""
     path = file_ or _svc().settings.memory_file
     with _svc().session_factory() as session:
-        user = session.scalar(select(User).limit(1))
+        user = auth_service.find_user(session, username)
         if user is None:
-            raise click.ClickException("Create the owner account first (kyvon create-user).")
+            raise click.ClickException(
+                "Create the owner account first (kyvon create-user), or name one with --username."
+            )
         try:
             result = import_json_memories(session, user.id, path)
         except MemoryImportError as error:
