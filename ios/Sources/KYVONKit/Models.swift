@@ -86,6 +86,56 @@ public struct KNotification: Codable, Identifiable, Equatable, Sendable {
     public let createdAt: String
 }
 
+/// What the sign-in screen needs before anyone is signed in (public, no secrets).
+public struct PublicConfig: Codable, Equatable, Sendable {
+    public let mode: String
+    public let signupOpen: Bool
+    public let termsVersion: String
+    public let privacyUrl: String
+    public let termsUrl: String
+
+    public var isHosted: Bool { mode == "hosted" }
+}
+
+/// One monthly allowance. `limit` is nil for accounts with no limits.
+public struct UsageLimits: Codable, Equatable, Sendable {
+    public let messages: Int
+    public let tokens: Int
+    public let voice: Int
+    public let searches: Int
+}
+
+public struct UsageSummary: Codable, Equatable, Sendable {
+    public let plan: String
+    public let periodStart: String
+    public let resetsAt: String
+    public let limits: UsageLimits?
+    public let used: UsageLimits
+    public let emailVerified: Bool
+
+    public var planName: String {
+        switch plan {
+        case "pro": return "Paid"
+        case "admin": return "Administrator"
+        default: return "Free"
+        }
+    }
+}
+
+public struct AccountUser: Codable, Equatable, Sendable {
+    public let id: Int
+    public let username: String
+    public let email: String?
+    public let emailVerified: Bool
+    public let role: String
+}
+
+public struct AccountInfo: Codable, Equatable, Sendable {
+    public let user: AccountUser
+    public let hosted: Bool
+    public let usage: UsageSummary?
+}
+
 // Response envelopes
 struct ConversationsEnvelope: Codable { let conversations: [Conversation] }
 struct ConversationEnvelope: Codable { let conversation: Conversation }

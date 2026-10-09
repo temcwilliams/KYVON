@@ -207,4 +207,65 @@ final class KYVONKitTests: XCTestCase {
         XCTAssertEqual(body, #"{"response_style":"detailed"}"#)
         XCTAssertEqual(transport.requests[1].httpMethod, "PATCH")
     }
+
+    func testPublicConfigNeedsNoToken() async throws {
+        let transport = MockTransport()
+        transport.responses = [(200, #"{"mode": "hosted", "signup_open": true, "billing": false, "price_label": "", "terms_version": "1", "privacy_url": "https://e/p", "terms_url": "https://e/t"}"#)]
+        let client = APIClient(baseURL: base, tokens: InMemoryTokenStore(token: "secret-token"), transport: transport)
+        let config = try await client.publicConfig()
+        XCTAssertTrue(config.isHosted)
+        XCTAssertTrue(config.signupOpen)
+        XCTAssertNil(transport.requests[0].value(forHTTPHeaderField: "Authorization"))
+        XCTAssertEqual(transport.requests[0].url?.path, "/api/v1/config")
+    }
+
+    func testSignUpSendsSnakeCaseBodyAndNoToken() async throws {
+        let transport = MockTransport()
+        transport.responses = [(202, #"{"ok": true, "message": "Check your email."}"#)]
+        let client = APIClient(baseURL: base, tokens: InMemoryTokenStore(token: "t"), transport: transport)
+        let message = try await client.signUp(email: "a@b.co", password: "long enough pw", acceptTerms: true)
+        XCTAssertEqual(message, "Check your email.")
+        let body = String(data: transport.requests[0].httpBody!, encoding: .utf8)!
+        XCTAssertTrue(body.contains("\"accept_terms\":true"))
+        XCTAssertNil(transport.requests[0].value(forHTTPHeaderField: "Authorization"))
+    }
+
+    func testAccountDecodesUsageAndUnlimitedAccounts() async throws {
+        let transport = MockTransport()
+        let limited = #"{"user": {"id": 1, "username": "u", "email": "a@b.co", "email_verified": true, "role": "user"}, "hosted": true, "usage": {"plan": "free", "period_start": "x", "resets_at": "y", "limits": {"messages": 30, "tokens": 60000, "voice": 10, "searches": 5}, "used": {"messages": 3, "tokens": 120, "voice": 0, "searches": 1}, "email_verified": true}}"#
+        let unlimited = #"{"user": {"id": 2, "username": "root", "email": null, "email_verified": false, "role": "admin"}, "hosted": true, "usage": {"plan": "admin", "period_start": "x", "resets_at": "y", "limits": null, "used": {"messages": 1, "tokens": 1, "voice": 0, "searches": 0}, "email_verified": false}}"#
+        transport.responses = [(200, limited), (200, unlimited)]
+        let client = APIClient(baseURL: base, tokens: InMemoryTokenStore(token: "t"), transport: transport)
+        let first = try await client.account()
+        XCTAssertEqual(first.usage?.limits?.messages, 30)
+        XCTAssertEqual(first.usage?.planName, "Free")
+        let second = try await client.account()
+        XCTAssertNil(second.usage?.limits)
+        XCTAssertEqual(second.usage?.planName, "Administrator")
+    }
+
+    func testDeleteAccountSendsPasswordAndClearsTheToken() async throws {
+        let transport = MockTransport()
+        let store = InMemoryTokenStore(token: "kyv_x")
+        let client = APIClient(baseURL: base, tokens: store, transport: transport)
+        try await client.deleteAccount(password: "my password")
+        XCTAssertEqual(transport.requests[0].httpMethod, "DELETE")
+        XCTAssertEqual(transport.requests[0].url?.path, "/api/v1/account")
+        XCTAssertTrue(String(data: transport.requests[0].httpBody!, encoding: .utf8)!.contains("\"password\":\"my password\""))
+        XCTAssertNil(store.load())
+    }
+
+    func testQuotaErrorKeepsTheServersMessage() async {
+        let transport = MockTransport()
+        transport.responses = [(402, #"{"error": {"code": "quota_exceeded", "message": "You have used your message allowance for this month."}}"#)]
+        let client = APIClient(baseURL: base, tokens: InMemoryTokenStore(token: "t"), transport: transport)
+        do {
+            _ = try await client.account()
+            XCTFail("expected an error")
+        } catch let error as APIError {
+            XCTAssertEqual(error.status, 402)
+            XCTAssertEqual(error.code, "quota_exceeded")
+            XCTAssertTrue(error.message.contains("allowance"))
+        } catch { XCTFail("wrong error \(error)") }
+    }
 }
