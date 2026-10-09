@@ -7,13 +7,13 @@ web app uses. Nothing here duplicates assistant logic.
 | Piece | What it does |
 |---|---|
 | `Sources/KYVONKit` | API client (no UI): login, streaming chat (SSE), approvals, tasks, memory, notifications, push-token and location upload, voice upload. Token in the **Keychain**. |
-| `Sources/KYVONApp` | SwiftUI screens (server address, sign-in, chats, streaming chat, approval cards) and device services (location, dictation, push registration). |
+| `Sources/KYVONApp` | SwiftUI screens and device services (location, dictation, push registration). Five tabs: **Chat** (streaming, inline approval cards, chat list), **Tasks**, **Memory**, **Inbox**, **Settings**; plus server-address and sign-in setup screens. `Theme.swift` holds the shared look. See [docs/IOS_DESIGN.md](../docs/IOS_DESIGN.md). |
 | `App/` | The `@main` entry point, Info.plist keys and entitlements for the iOS target. |
 | `project.yml` | XcodeGen spec that generates the Xcode project. |
 
 ## Status (read this first)
 
-**None of the Swift code has been compiled or run.** It was written on a Mac whose Command Line
+**None of the Swift code has been compiled or run, including the redesign.** It was written on a Mac whose Command Line
 Tools compiler does not match its SDK (Swift cannot even build Foundation there) and without
 Xcode, so neither `swift build`, `swift test` nor an iOS build was possible. The code was
 desk-checked, and the pieces most likely to break are small and isolated, but expect to fix a few

@@ -14,6 +14,12 @@ public final class AppModel: ObservableObject {
     @Published public var conversations: [Conversation] = []
     @Published public var messages: [ChatMessage] = []
     @Published public var pendingApprovals: [ToolRun] = []
+    @Published public var openTasks: [KTask] = []
+    @Published public var doneTasks: [KTask] = []
+    @Published public var memories: [Memory] = []
+    @Published public var notifications: [KNotification] = []
+    @Published public var unreadCount = 0
+    @Published public var preferences: Preferences?
     @Published public var currentConversationId: Int?
     @Published public var isReplying = false
     @Published public var statusText = ""
@@ -79,6 +85,7 @@ public final class AppModel: ObservableObject {
         streamTask?.cancel()
         await client?.logout()
         conversations = []; messages = []; pendingApprovals = []; currentConversationId = nil
+        openTasks = []; doneTasks = []; memories = []; notifications = []; unreadCount = 0; preferences = nil
         phase = .signedOut
     }
 
@@ -87,6 +94,87 @@ public final class AppModel: ObservableObject {
     public func refreshAll() async {
         await refreshConversations()
         await refreshApprovals()
+        await refreshTasks()
+        await refreshMemories()
+        await refreshInbox()
+        await refreshPreferences()
+    }
+
+    // MARK: tasks
+
+    public func refreshTasks() async {
+        do {
+            openTasks = try await client?.tasks(status: "open") ?? []
+            doneTasks = try await client?.tasks(status: "done") ?? []
+        } catch { handle(error) }
+    }
+
+    public func addTask(_ title: String) async {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        do { try await client?.createTask(title: trimmed); await refreshTasks() } catch { handle(error) }
+    }
+
+    /// Completes an open task, or reopens a finished one.
+    public func toggle(_ task: KTask) async {
+        do {
+            if task.status == "done" { try await client?.reopenTask(id: task.id) } else { try await client?.completeTask(id: task.id) }
+            await refreshTasks()
+        } catch { handle(error) }
+    }
+
+    public func delete(_ task: KTask) async {
+        do { try await client?.deleteTask(id: task.id); await refreshTasks() } catch { handle(error) }
+    }
+
+    // MARK: memory
+
+    public func refreshMemories() async {
+        do { memories = try await client?.memories() ?? [] } catch { handle(error) }
+    }
+
+    public func addMemory(_ text: String) async {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        do { try await client?.createMemory(trimmed); await refreshMemories() } catch { handle(error) }
+    }
+
+    public func delete(_ memory: Memory) async {
+        do { try await client?.deleteMemory(id: memory.id); await refreshMemories() } catch { handle(error) }
+    }
+
+    // MARK: inbox
+
+    public func refreshInbox() async {
+        do {
+            if let result = try await client?.notifications() {
+                notifications = result.items
+                unreadCount = result.unread
+            }
+        } catch { handle(error) }
+    }
+
+    public func markRead(_ note: KNotification) async {
+        guard !note.read else { return }
+        do { try await client?.markNotificationRead(id: note.id); await refreshInbox() } catch { handle(error) }
+    }
+
+    public func markAllRead() async {
+        do { try await client?.markAllNotificationsRead(); await refreshInbox() } catch { handle(error) }
+    }
+
+    // MARK: settings
+
+    public func refreshPreferences() async {
+        do { preferences = try await client?.preferences() } catch { handle(error) }
+    }
+
+    public func updatePreferences(responseStyle: String? = nil, tone: String? = nil, units: String? = nil,
+                                  voiceReplies: Bool? = nil) async {
+        do {
+            preferences = try await client?.updatePreferences(responseStyle: responseStyle, tone: tone, units: units,
+                                                              voiceReplies: voiceReplies)
+        } catch { handle(error) }
     }
 
     public func refreshConversations() async {

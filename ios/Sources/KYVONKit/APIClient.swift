@@ -192,6 +192,51 @@ public final class APIClient: @unchecked Sendable {
         return (result.notifications, result.unreadCount)
     }
 
+    // MARK: tasks, memory, inbox, settings
+
+    public func createTask(title: String, priority: String = "normal") async throws {
+        struct Body: Encodable { let title: String; let priority: String }
+        _ = try await send(makeRequest("POST", "/tasks", body: try body(Body(title: title, priority: priority))), as: OkEnvelope.self)
+    }
+
+    public func reopenTask(id: Int) async throws {
+        _ = try await send(makeRequest("POST", "/tasks/\(id)/reopen"), as: OkEnvelope.self)
+    }
+
+    public func deleteTask(id: Int) async throws {
+        _ = try await send(makeRequest("DELETE", "/tasks/\(id)"), as: OkEnvelope.self)
+    }
+
+    /// Saves a memory the user asked for. (The server refuses anything that looks like a secret.)
+    public func createMemory(_ text: String) async throws {
+        struct Body: Encodable { let text: String }
+        _ = try await send(makeRequest("POST", "/memories", body: try body(Body(text: text))), as: OkEnvelope.self)
+    }
+
+    public func deleteMemory(id: Int) async throws {
+        _ = try await send(makeRequest("DELETE", "/memories/\(id)"), as: OkEnvelope.self)
+    }
+
+    public func markNotificationRead(id: Int) async throws {
+        _ = try await send(makeRequest("POST", "/notifications/\(id)/read"), as: OkEnvelope.self)
+    }
+
+    public func markAllNotificationsRead() async throws {
+        _ = try await send(makeRequest("POST", "/notifications/read-all"), as: OkEnvelope.self)
+    }
+
+    public func preferences() async throws -> Preferences {
+        try await send(makeRequest("GET", "/settings"), as: SettingsEnvelope.self).settings
+    }
+
+    /// Changes only the fields that are non-nil.
+    public func updatePreferences(responseStyle: String? = nil, tone: String? = nil, units: String? = nil,
+                                  voiceReplies: Bool? = nil) async throws -> Preferences {
+        struct Patch: Encodable { var responseStyle: String?; var tone: String?; var units: String?; var voiceReplies: Bool? }
+        let patch = Patch(responseStyle: responseStyle, tone: tone, units: units, voiceReplies: voiceReplies)
+        return try await send(makeRequest("PATCH", "/settings", body: try body(patch)), as: SettingsEnvelope.self).settings
+    }
+
     // MARK: device features
 
     /// Shares the device location so KYVON can use local weather and time zone.

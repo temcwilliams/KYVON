@@ -46,6 +46,16 @@ public struct Memory: Codable, Identifiable, Equatable, Sendable {
     public let source: String
 }
 
+/// The user's personalization settings (a subset: the ones the app lets you change).
+public struct Preferences: Codable, Equatable, Sendable {
+    public var displayName: String?
+    public var responseStyle: String
+    public var tone: String
+    public var units: String
+    public var voiceReplies: Bool
+    public var calendarEnabled: Bool
+}
+
 public struct KTask: Codable, Identifiable, Equatable, Sendable {
     public let id: Int
     public var title: String
@@ -54,6 +64,7 @@ public struct KTask: Codable, Identifiable, Equatable, Sendable {
     public let priorityName: String
     public let due: String?
     public let overdue: Bool
+    public let recurrence: String?
 }
 
 /// An action KYVON wants to take that needs the user's approval.
@@ -85,4 +96,5 @@ struct ToolRunEnvelope: Codable { let toolRun: ToolRun }
 struct ToolRunsEnvelope: Codable { let toolRuns: [ToolRun] }
 struct NotificationsEnvelope: Codable { let notifications: [KNotification]; let unreadCount: Int }
 struct TranscriptionEnvelope: Codable { let text: String }
+struct SettingsEnvelope: Codable { let settings: Preferences }
 struct OkEnvelope: Codable { let ok: Bool? }

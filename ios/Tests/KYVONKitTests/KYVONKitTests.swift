@@ -163,4 +163,48 @@ final class KYVONKitTests: XCTestCase {
         XCTAssertTrue(String(data: transport.requests[0].httpBody!, encoding: .utf8)!.contains("\"device_token\":\"abcd1234\""))
         XCTAssertEqual(transport.requests[1].url?.path, "/api/v1/environment")
     }
+
+    func testTaskCreateReopenAndDeleteRequests() async throws {
+        let transport = MockTransport()
+        let client = APIClient(baseURL: base, tokens: InMemoryTokenStore(token: "t"), transport: transport)
+        try await client.createTask(title: "Book flights", priority: "high")
+        try await client.reopenTask(id: 4)
+        try await client.deleteTask(id: 4)
+        XCTAssertEqual(transport.requests.map(\.httpMethod), ["POST", "POST", "DELETE"])
+        XCTAssertEqual(transport.requests.map { $0.url?.path }, ["/api/v1/tasks", "/api/v1/tasks/4/reopen", "/api/v1/tasks/4"])
+        let body = String(data: transport.requests[0].httpBody!, encoding: .utf8)!
+        XCTAssertTrue(body.contains("\"title\":\"Book flights\"") && body.contains("\"priority\":\"high\""))
+    }
+
+    func testMemoryCreateSendsTextAndDeleteUsesTheId() async throws {
+        let transport = MockTransport()
+        let client = APIClient(baseURL: base, tokens: InMemoryTokenStore(token: "t"), transport: transport)
+        try await client.createMemory("Prefers metric units")
+        try await client.deleteMemory(id: 9)
+        XCTAssertTrue(String(data: transport.requests[0].httpBody!, encoding: .utf8)!.contains("\"text\":\"Prefers metric units\""))
+        XCTAssertEqual(transport.requests[1].url?.path, "/api/v1/memories/9")
+        XCTAssertEqual(transport.requests[1].httpMethod, "DELETE")
+    }
+
+    func testNotificationReadEndpoints() async throws {
+        let transport = MockTransport()
+        let client = APIClient(baseURL: base, tokens: InMemoryTokenStore(token: "t"), transport: transport)
+        try await client.markNotificationRead(id: 3)
+        try await client.markAllNotificationsRead()
+        XCTAssertEqual(transport.requests.map { $0.url?.path }, ["/api/v1/notifications/3/read", "/api/v1/notifications/read-all"])
+    }
+
+    func testPreferencesDecodeAndPatchSendsOnlyChangedFields() async throws {
+        let transport = MockTransport()
+        let settings = #"{"settings": {"display_name": null, "response_style": "concise", "tone": "default", "units": "metric", "voice_replies": false, "calendar_enabled": true, "week_starts_on": "sun"}}"#
+        transport.responses = [(200, settings), (200, settings)]
+        let client = APIClient(baseURL: base, tokens: InMemoryTokenStore(token: "t"), transport: transport)
+        let prefs = try await client.preferences()
+        XCTAssertEqual(prefs.responseStyle, "concise")
+        XCTAssertEqual(prefs.units, "metric")
+        _ = try await client.updatePreferences(responseStyle: "detailed")
+        let body = String(data: transport.requests[1].httpBody!, encoding: .utf8)!
+        XCTAssertEqual(body, #"{"response_style":"detailed"}"#)
+        XCTAssertEqual(transport.requests[1].httpMethod, "PATCH")
+    }
 }
