@@ -53,6 +53,20 @@ def resolve(error_id: int):
     return jsonify({"error": observability.serialize_error(row)})
 
 
+@bp.get("/top-users")
+@admin_required
+def top_users():
+    """Who is using the most (hosted mode): the cost-control view."""
+    from kyvon.services import usage_service
+
+    rows = usage_service.top_users(
+        get_session(),
+        days=max(1, min(_int("days", 30), 365)),
+        limit=max(1, min(_int("limit", 20), 100)),
+    )
+    return jsonify({"users": rows})
+
+
 @bp.get("/usage")
 @admin_required
 def usage():

@@ -5,6 +5,8 @@ from __future__ import annotations
 from pydantic import Field
 
 from kyvon.llm.prompts import WEB_SYSTEM_PROMPT
+from kyvon.services.errors import EmailNotVerified, QuotaExceeded
+from kyvon.services.usage_service import UsageGate
 from kyvon.tools.base import ToolArgs, ToolContext, ToolError
 from kyvon.tools.registry import ToolRegistry
 
@@ -29,6 +31,16 @@ def register(registry: ToolRegistry) -> None:
     )
     def web_search(ctx: ToolContext, args: WebSearchArgs):
         services = ctx.services
+        gate = (
+            UsageGate(ctx.session, services.settings, ctx.user_id)
+            if services.settings.hosted
+            else None
+        )
+        if gate is not None:
+            try:
+                gate.check("search")
+            except (QuotaExceeded, EmailNotVerified) as error:
+                raise ToolError(str(error)) from error
         answer = services.llm.complete(
             [
                 {"role": "system", "content": WEB_SYSTEM_PROMPT},
@@ -37,6 +49,8 @@ def register(registry: ToolRegistry) -> None:
             model=services.settings.web_model,
             max_tokens=MAX_TOKENS,
         )
+        if gate is not None:
+            gate.record("search", len(args.query) // 4, len(answer) // 4)
         if not answer.strip():
             raise ToolError("The search returned no answer.")
         return {"query": args.query, "answer": answer}

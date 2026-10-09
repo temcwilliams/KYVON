@@ -28,6 +28,7 @@ from kyvon.models import AgentRun
 from kyvon.services.environment_context import render_environment
 from kyvon.services.errors import ConflictError, NotFoundError, ValidationFailure
 from kyvon.services.settings_service import get_settings, timezone_for
+from kyvon.services.usage_service import UsageGate
 from kyvon.tools.executor import CallOrigin
 from kyvon.utils.redact import redact
 
@@ -101,6 +102,8 @@ class AgentRunner:
         origin: str = "chat",
     ) -> AgentRun:
         definition = self.definition(agent)
+        if self._services.settings.hosted:
+            UsageGate(session, self._services.settings, user_id).check("agent")
         goal = (goal or "").strip()
         if len(goal) < 5:
             raise ValidationFailure("Give the agent a clear goal.")
@@ -318,4 +321,12 @@ class AgentRunner:
         run.pending_run_ids = list(pending) or None
         run.finished_at = self._now()
         session.commit()
+        if self._services.settings.hosted:
+            try:
+                UsageGate(session, self._services.settings, run.user_id).record(
+                    "agent", run.tokens_in, run.tokens_out
+                )
+            except Exception:
+                log.exception("could not record agent usage")
+                session.rollback()
         return run

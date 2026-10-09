@@ -51,6 +51,15 @@ _INTS: dict[str, tuple[str, int, int, int]] = {
     "verify_ttl_hours": ("KYVON_VERIFY_TTL_HOURS", 48, 1, 720),
     "reset_ttl_minutes": ("KYVON_RESET_TTL_MINUTES", 60, 5, 1440),
     "auth_rate_per_minute": ("KYVON_AUTH_RATE_PER_MINUTE", 10, 1, 10_000),
+    # Monthly allowances per plan (hosted mode). Tokens are the real cost control.
+    "quota_free_messages": ("KYVON_QUOTA_FREE_MESSAGES", 30, 0, 10_000_000),
+    "quota_free_tokens": ("KYVON_QUOTA_FREE_TOKENS", 60_000, 0, 1_000_000_000),
+    "quota_free_voice": ("KYVON_QUOTA_FREE_VOICE", 10, 0, 10_000_000),
+    "quota_free_searches": ("KYVON_QUOTA_FREE_SEARCHES", 5, 0, 10_000_000),
+    "quota_pro_messages": ("KYVON_QUOTA_PRO_MESSAGES", 3000, 0, 10_000_000),
+    "quota_pro_tokens": ("KYVON_QUOTA_PRO_TOKENS", 6_000_000, 0, 1_000_000_000),
+    "quota_pro_voice": ("KYVON_QUOTA_PRO_VOICE", 500, 0, 10_000_000),
+    "quota_pro_searches": ("KYVON_QUOTA_PRO_SEARCHES", 300, 0, 10_000_000),
 }
 
 _FLAGS: dict[str, tuple[str, bool]] = {
@@ -178,6 +187,14 @@ class Settings:
     reset_ttl_minutes: int = 60
     auth_rate_per_minute: int = 10
     terms_version: str = "1"
+    quota_free_messages: int = 30
+    quota_free_tokens: int = 60_000
+    quota_free_voice: int = 10
+    quota_free_searches: int = 5
+    quota_pro_messages: int = 3000
+    quota_pro_tokens: int = 6_000_000
+    quota_pro_voice: int = 500
+    quota_pro_searches: int = 300
 
     # Requests and abuse limits
     llm_timeout_seconds: int = 60
