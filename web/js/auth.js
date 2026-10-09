@@ -119,7 +119,7 @@ function bindHostedForms() {
         const link = (url, label) =>
             url ? h("a", { href: url, target: "_blank", rel: "noopener noreferrer", text: label }) : label;
         document.getElementById("signupTermsText").replaceChildren(
-            "I agree to the ", link(terms, "terms of use"), " and ", link(privacy, "privacy policy"), "."
+            "I am 16 or older and I agree to the ", link(terms, "terms of use"), " and ", link(privacy, "privacy policy"), "."
         );
     }
 

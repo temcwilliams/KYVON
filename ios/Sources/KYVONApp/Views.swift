@@ -168,7 +168,7 @@ struct LoginView: View {
             .textFieldStyle(.roundedBorder)
         Toggle(isOn: $accepted) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("I agree to the terms of use and privacy policy.").font(.footnote)
+                Text("I am 16 or older and I agree to the terms of use and privacy policy.").font(.footnote)
                 HStack(spacing: 12) {
                     Link("Terms", destination: LegalLinks.terms)
                     Link("Privacy", destination: LegalLinks.privacy)

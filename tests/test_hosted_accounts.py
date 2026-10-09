@@ -707,3 +707,45 @@ def test_backup_of_a_server_database_points_to_pg_dump():
 
     with pytest.raises(click.ClickException, match="pg_dump"):
         _sqlite_path("postgresql+psycopg://u:p@db/kyvon")
+
+
+# ------------------------------------------------------- moderation (admin)
+
+
+def test_admins_can_find_suspend_and_restore_accounts(http, hosted):
+    make_verified(hosted, "boss@example.com", role="admin")
+    victim = make_verified(hosted, "abuser@example.com")
+    make_verified(hosted, "fine@example.com")
+    boss = login(http, "boss@example.com")
+    victim_client = login(http, "abuser@example.com")
+
+    found = boss.get("/api/v1/admin/users?q=abuse").get_json()["users"]
+    assert [u["email"] for u in found] == ["abuser@example.com"]
+    assert found[0]["plan"] == "free" and found[0]["disabled"] is False
+    assert "password" not in str(found).lower()
+
+    assert boss.post(f"/api/v1/admin/users/{victim}/disable").get_json()["user"]["disabled"] is True
+    assert victim_client.get("/api/v1/auth/me").status_code == 401  # signed out everywhere
+    assert (
+        http.post(
+            "/api/v1/auth/login", json={"username": "abuser@example.com", "password": PASSWORD}
+        ).status_code
+        == 401
+    )
+
+    assert boss.post(f"/api/v1/admin/users/{victim}/enable").status_code == 200
+    assert login(http, "abuser@example.com")
+
+
+def test_moderation_endpoints_refuse_ordinary_users_and_dangerous_targets(http, hosted):
+    boss_id = make_verified(hosted, "boss@example.com", role="admin")
+    user = make_verified(hosted, "user@example.com")
+    boss, plain = login(http, "boss@example.com"), login(http, "user@example.com")
+    assert plain.get("/api/v1/admin/users").status_code == 403
+    assert plain.post(f"/api/v1/admin/users/{boss_id}/disable").status_code == 403
+    assert boss.post(f"/api/v1/admin/users/{boss_id}/disable").status_code == 409  # not yourself
+    assert boss.post("/api/v1/admin/users/99999/disable").status_code == 404
+    other_boss = make_verified(hosted, "boss2@example.com", role="admin")
+    assert boss.post(f"/api/v1/admin/users/{other_boss}/disable").status_code == 200
+    second = login(http, "boss@example.com")
+    assert second.post(f"/api/v1/admin/users/{user}/disable").status_code == 200

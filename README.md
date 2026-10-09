@@ -25,6 +25,15 @@ eventually, a native app. Flask backend, SQLite database, Groq for the language 
 - **Voice**: dictate with server-side Whisper, hear replies read by your device.
 - **Admin** view: health, errors, usage and run traces (no secrets).
 
+## Personal install or hosted service
+
+By default KYVON is a **personal** assistant for one owner on a server you control. Setting `KYVON_MODE=hosted`
+turns the same code into a **multi-user service**: email sign-up with verification, password reset, monthly
+usage limits, Stripe subscriptions, data export and account deletion, admin moderation tools, and a PostgreSQL
+database. Hosted mode is built and tested but has **never run against real Stripe, a real mail server, real
+traffic or a real host**; read [docs/HOSTED_DEPLOYMENT.md](docs/HOSTED_DEPLOYMENT.md) and the legal drafts in
+[docs/legal/hosted/](docs/legal/hosted/) first.
+
 ## Run it locally
 
 Requires Python 3.12+.
