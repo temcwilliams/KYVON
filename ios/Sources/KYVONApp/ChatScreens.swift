@@ -8,7 +8,7 @@ struct ChatTab: View {
     @State private var showConversations = false
 
     var body: some View {
-        NavigationStack {
+        NavStack {
             ChatView(model: model)
                 .background(Theme.background.ignoresSafeArea())
                 .navigationTitle("KYVON")
@@ -33,7 +33,7 @@ struct ConversationsView: View {
     @Binding var isPresented: Bool
 
     var body: some View {
-        NavigationStack {
+        NavStack {
             Group {
                 if model.conversations.isEmpty {
                     EmptyState(symbol: "message", title: "Start your first chat",
@@ -102,8 +102,7 @@ struct ChatView: View {
 
     private var composer: some View {
         HStack(alignment: .bottom, spacing: 8) {
-            TextField("Message KYVON", text: $draft, axis: .vertical)
-                .lineLimit(1...5)
+            ComposerField(text: $draft)
                 .padding(.horizontal, 12).padding(.vertical, 8)
                 .background(Theme.card)
                 .clipShape(RoundedRectangle(cornerRadius: 18))
@@ -128,6 +127,18 @@ struct ChatView: View {
     private func send() {
         model.send(draft)
         draft = ""
+    }
+}
+
+/// A growing multi-line field on iOS 16+, a single-line field before that.
+struct ComposerField: View {
+    @Binding var text: String
+    var body: some View {
+        if #available(iOS 16, macOS 13, *) {
+            TextField("Message KYVON", text: $text, axis: .vertical).lineLimit(1...5)
+        } else {
+            TextField("Message KYVON", text: $text)
+        }
     }
 }
 

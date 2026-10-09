@@ -8,7 +8,7 @@ import SwiftUI
 /// the app, so the server stays the single source of truth.
 @MainActor
 public final class AppModel: ObservableObject {
-    public enum Phase: Equatable { case needsServer, signedOut, signedIn(APIUser) }
+    public enum Phase: Equatable { case needsConsent, needsServer, signedOut, signedIn(APIUser) }
 
     @Published public private(set) var phase: Phase = .needsServer
     @Published public var conversations: [Conversation] = []
@@ -48,7 +48,21 @@ public final class AppModel: ObservableObject {
         return url
     }
 
+    /// Bump when the privacy policy or the data-sharing description changes, so people are asked again.
+    public static let consentVersion = 1
+
+    public var hasConsented: Bool { defaults.integer(forKey: "consentVersion") >= Self.consentVersion }
+
+    public func acceptConsent() async {
+        defaults.set(Self.consentVersion, forKey: "consentVersion")
+        await start()
+    }
+
     public func start() async {
+        guard hasConsented else {
+            phase = .needsConsent
+            return
+        }
         guard let text = defaults.string(forKey: "serverURL"), let url = Self.validatedServerURL(text) else {
             phase = .needsServer
             return

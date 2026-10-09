@@ -13,7 +13,7 @@ struct TasksView: View {
     private var upcoming: [KTask] { model.openTasks.filter { !$0.overdue } }
 
     var body: some View {
-        NavigationStack {
+        NavStack {
             List {
                 Section {
                     HStack {
@@ -103,7 +103,7 @@ struct MemoryView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavStack {
             List {
                 Section {
                     HStack {
@@ -116,7 +116,7 @@ struct MemoryView: View {
                     Text("KYVON only saves what you ask it to, and refuses passwords and keys.")
                 }
                 if shown.isEmpty {
-                    EmptyState(symbol: "brain", title: query.isEmpty ? "No memories yet" : "No matches",
+                    EmptyState(symbol: Theme.memorySymbol, title: query.isEmpty ? "No memories yet" : "No matches",
                                message: query.isEmpty ? "Say \"remember ...\" in a chat, or add one above." : "Try different words.")
                         .listRowBackground(Color.clear)
                 }
@@ -150,7 +150,7 @@ struct InboxView: View {
     @ObservedObject var model: AppModel
 
     var body: some View {
-        NavigationStack {
+        NavStack {
             List {
                 if model.notifications.isEmpty {
                     EmptyState(symbol: "bell", title: "All caught up",
@@ -191,11 +191,11 @@ struct SettingsView: View {
     @State private var confirmSignOut = false
 
     var body: some View {
-        NavigationStack {
+        NavStack {
             Form {
                 Section("Account") {
-                    if case .signedIn(let user) = model.phase { LabeledContent("Signed in as", value: user.username) }
-                    if let url = model.client?.baseURL { LabeledContent("Server", value: url.host ?? url.absoluteString) }
+                    if case .signedIn(let user) = model.phase { LabeledRow(title: "Signed in as", value: user.username) }
+                    if let url = model.client?.baseURL { LabeledRow(title: "Server", value: url.host ?? url.absoluteString) }
                 }
                 if let prefs = model.preferences {
                     Section("Assistant") {
@@ -213,6 +213,11 @@ struct SettingsView: View {
                             set: { value in Task { await model.updatePreferences(voiceReplies: value) } }))
                     }
                 }
+                Section("About") {
+                    Link("Privacy policy", destination: LegalLinks.privacy)
+                    Link("Terms of use", destination: LegalLinks.terms)
+                    LabeledRow(title: "Version", value: Self.version)
+                }
                 Section {
                     Button("Sign out of this device", role: .destructive) { confirmSignOut = true }
                 } footer: {
@@ -226,6 +231,10 @@ struct SettingsView: View {
                 Button("Sign out", role: .destructive) { Task { await model.signOut() } }
             }
         }
+    }
+
+    private static var version: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "development"
     }
 
     private func choice(_ title: String, _ options: [String], _ current: String,

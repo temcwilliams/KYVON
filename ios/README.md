@@ -26,6 +26,16 @@ login/token handling, error mapping, streaming decode, approvals, uploads) are w
   `push_subscriptions` table), but the server cannot deliver to it until APNs sending is added.
   Reminders always appear in the app's inbox when the app is opened.
 
+## Compatibility and App Store
+
+Supports **iOS 15 and later** (iPhone and iPad). Screens use `NavigationStack`/multi-line fields on iOS 16+
+and fall back to older equivalents on iOS 15. The package builds on macOS 12+ only so CI can compile it.
+Going below iOS 15 would mean rewriting the streaming client, which needs `URLSession.bytes`.
+
+App Store preparation (consent screen, privacy manifest, icon, policies, submission answers) is in
+[docs/appstore/APP_STORE_SUBMISSION.md](../docs/appstore/APP_STORE_SUBMISSION.md) and
+[docs/legal/](../docs/legal/). The policies are drafts for a lawyer to review, not legal advice.
+
 ## Build it
 
 1. Install Xcode 15 or newer and XcodeGen: `brew install xcodegen`.

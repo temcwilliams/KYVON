@@ -15,6 +15,13 @@ enum Theme {
     static let corner: CGFloat = 12
 }
 
+/// Where the policies live. They must be public web pages (App Store Connect asks for the privacy
+/// policy URL). Update these if the documents move, for example to a site you host.
+enum LegalLinks {
+    static let privacy = URL(string: "https://github.com/temcwilliams/jarvis-assistant/blob/main/docs/legal/PRIVACY_POLICY.md")!
+    static let terms = URL(string: "https://github.com/temcwilliams/jarvis-assistant/blob/main/docs/legal/TERMS_OF_USE.md")!
+}
+
 /// A rounded card row used by every list so the screens feel like one app.
 struct CardRow<Content: View>: View {
     @ViewBuilder var content: Content
@@ -78,4 +85,41 @@ extension View {
         #endif
     }
 }
+/// `NavigationStack` on iOS 16+/macOS 13+, `NavigationView` before that (the app supports iOS 15).
+struct NavStack<Content: View>: View {
+    @ViewBuilder var content: Content
+    var body: some View {
+        if #available(iOS 16, macOS 13, *) {
+            NavigationStack { content }
+        } else {
+            #if os(iOS)
+            NavigationView { content }.navigationViewStyle(.stack)
+            #else
+            NavigationView { content }
+            #endif
+        }
+    }
+}
+
+/// A "Title ........ value" row (`LabeledContent` needs iOS 16).
+struct LabeledRow: View {
+    let title: String
+    let value: String
+    var body: some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Text(value).foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+extension Theme {
+    /// The "brain" symbol needs iOS 16; older systems get a bookmark.
+    static var memorySymbol: String {
+        if #available(iOS 16, macOS 13, *) { return "brain" } else { return "bookmark" }
+    }
+}
+
 #endif
