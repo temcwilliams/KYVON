@@ -153,7 +153,9 @@ def _sqlite_path(url: str) -> Path:
         or not parsed.database
         or parsed.database == ":memory:"
     ):
-        raise click.ClickException("Backups are only implemented for a file-based SQLite database.")
+        raise click.ClickException(
+            "This command backs up SQLite files only. For Postgres use pg_dump (see docs/HOSTED_DEPLOYMENT.md)."
+        )
     return Path(parsed.database)
 
 
@@ -163,6 +165,28 @@ def _integrity_ok(path: Path) -> bool:
             return db.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
     except sqlite3.Error:
         return False
+
+
+@cli.command("scheduler")
+def scheduler_command():
+    """Run the reminder/automation scheduler in this process until stopped.
+
+    For a hosted deployment with several web workers: set KYVON_SCHEDULER=false on the web
+    workers and run this once, as its own service, so exactly one process ticks the clock.
+    (Two running at once is still safe: each run is claimed atomically in the database.)
+    """
+    import signal
+    import threading
+
+    svc = _svc()
+    stop = threading.Event()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        signal.signal(sig, lambda *_: stop.set())
+    svc.scheduler.start()
+    click.echo("Scheduler running. Stop it with Ctrl+C or SIGTERM.")
+    stop.wait()
+    svc.scheduler.stop()
+    click.echo("Scheduler stopped.")
 
 
 @cli.command("backup")

@@ -10,7 +10,7 @@ from kyvon.models.memory import Memory
 from kyvon.models.push import PushSubscription
 from kyvon.models.task import Task
 from kyvon.models.tool_run import ToolRun
-from kyvon.models.usage import UsageEvent
+from kyvon.models.usage import RateHit, UsageEvent
 from kyvon.models.user import ApiToken, EmailToken, User
 
 __all__ = [
@@ -28,6 +28,7 @@ __all__ = [
     "Notification",
     "OAuthState",
     "PushSubscription",
+    "RateHit",
     "Subscription",
     "Task",
     "ToolRun",

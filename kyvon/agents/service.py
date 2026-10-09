@@ -82,11 +82,16 @@ class AgentService:
         session.commit()
         return run
 
-    def recover_orphans(self, session: Session) -> int:
-        """Runs that were in flight when the process stopped can never finish: close them."""
-        rows = list(
-            session.scalars(select(AgentRun).where(AgentRun.status.in_(("queued", "running"))))
-        )
+    def recover_orphans(self, session: Session, *, stale_after=None) -> int:
+        """Runs that were in flight when the process stopped can never finish: close them.
+
+        With several worker processes (hosted), ``stale_after`` restricts this to runs old enough
+        that no live worker can still own them.
+        """
+        query = select(AgentRun).where(AgentRun.status.in_(("queued", "running")))
+        if stale_after is not None:
+            query = query.where(AgentRun.created_at < utcnow() - stale_after)
+        rows = list(session.scalars(query))
         for run in rows:
             run.status = "failed"
             run.error = "Interrupted by a server restart."

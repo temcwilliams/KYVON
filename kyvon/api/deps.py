@@ -66,7 +66,7 @@ def enforce_rate(bucket: str, per_minute: int) -> None:
 def enforce_ip_rate(bucket: str, per_minute: int | None = None) -> None:
     """Limit anonymous endpoints (sign-up, password reset) per client IP; raises 429."""
     limit = per_minute or services().settings.auth_rate_per_minute
-    allowed, wait = services().rate_limiter.hit(f"{bucket}:{request.remote_addr}", limit)
+    allowed, wait = services().auth_limiter.hit(f"{bucket}:{request.remote_addr}", limit)
     if not allowed:
         raise ApiError(
             429,

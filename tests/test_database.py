@@ -112,3 +112,30 @@ def test_token_hash_unique(migrated_engine):
         session.add(ApiToken(user_id=user.id, token_hash="h", expires_at=exp))
         with pytest.raises(Exception, match="UNIQUE"):
             session.commit()
+
+
+def test_migrations_render_as_valid_postgres_sql_offline():
+    """No server needed: Alembic renders migrations 0003..head as Postgres DDL. (0001-0003 are covered
+    on SQLite and by the live Postgres job in CI; 0003 reads rows, which offline mode cannot do.)"""
+    import io
+    from contextlib import redirect_stdout
+
+    from alembic import command
+
+    from kyvon.db import alembic_config
+
+    config = alembic_config("postgresql+psycopg://u:p@localhost/x")
+    config.attributes["output_buffer"] = buffer = io.StringIO()
+    with redirect_stdout(buffer):
+        command.upgrade(config, "0003:head", sql=True)
+    sql = buffer.getvalue()
+    for expected in (
+        "CREATE TABLE subscriptions",
+        "CREATE TABLE usage_events",
+        "CREATE TABLE rate_hits",
+        "ALTER TABLE users ADD COLUMN email VARCHAR(254)",
+        "CREATE UNIQUE INDEX ix_users_email",
+    ):
+        assert expected in sql, expected
+    # Nothing that rebuilds the users table (that cascade-deletes everyone's data on SQLite).
+    assert "DROP TABLE users" not in sql and "CREATE TABLE _alembic_tmp_users" not in sql
