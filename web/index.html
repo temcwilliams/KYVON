@@ -113,6 +113,43 @@
             >
             <button type="submit">SIGN IN</button>
             <div id="loginError" class="login-error" role="alert"></div>
+            <div id="loginLinks" class="login-links" hidden>
+                <button type="button" id="showSignup" class="link">Create an account</button>
+                <button type="button" id="showForgot" class="link">Forgot password?</button>
+            </div>
+        </form>
+
+        <form id="signupForm" hidden>
+            <div class="login-title">CREATE ACCOUNT</div>
+            <input id="signupEmail" type="email" placeholder="Email" aria-label="Email address"
+                autocomplete="email" autocapitalize="none" required>
+            <input id="signupPassword" type="password" placeholder="Password (10+ characters)"
+                aria-label="Password" autocomplete="new-password" minlength="10" required>
+            <label class="check">
+                <input id="signupTerms" type="checkbox" required>
+                <span id="signupTermsText">I am 16 or older and I agree to the terms of use and privacy policy.</span>
+            </label>
+            <button type="submit">CREATE ACCOUNT</button>
+            <div id="signupMessage" class="login-error" role="alert"></div>
+            <button type="button" class="link" data-back="1">Back to sign in</button>
+        </form>
+
+        <form id="forgotForm" hidden>
+            <div class="login-title">RESET PASSWORD</div>
+            <input id="forgotEmail" type="email" placeholder="Email" aria-label="Email address"
+                autocomplete="email" autocapitalize="none" required>
+            <button type="submit">SEND RESET LINK</button>
+            <div id="forgotMessage" class="login-error" role="alert"></div>
+            <button type="button" class="link" data-back="1">Back to sign in</button>
+        </form>
+
+        <form id="resetForm" hidden>
+            <div class="login-title">NEW PASSWORD</div>
+            <input id="resetPassword" type="password" placeholder="New password (10+ characters)"
+                aria-label="New password" autocomplete="new-password" minlength="10" required>
+            <button type="submit">SAVE PASSWORD</button>
+            <div id="resetMessage" class="login-error" role="alert"></div>
+            <button type="button" class="link" data-back="1">Back to sign in</button>
         </form>
     </div>
 

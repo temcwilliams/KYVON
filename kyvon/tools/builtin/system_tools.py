@@ -5,9 +5,9 @@ from __future__ import annotations
 from pydantic import Field
 from sqlalchemy import select
 
-from kyvon.models import ToolRun
+from kyvon.models import ToolRun, User
 from kyvon.services import observability
-from kyvon.tools.base import ToolArgs, ToolContext
+from kyvon.tools.base import ToolArgs, ToolContext, ToolError
 from kyvon.tools.registry import ToolRegistry
 
 
@@ -26,6 +26,15 @@ class RunsArgs(ToolArgs):
     limit: int = Field(default=10, ge=1, le=30)
 
 
+def _server_wide(ctx: ToolContext) -> None:
+    """These tools describe the whole server. On a hosted service only administrators may see that."""
+    if not ctx.services.settings.hosted:
+        return
+    user = ctx.session.get(User, ctx.user_id)
+    if user is None or not user.is_admin:
+        raise ToolError("That information is only available to administrators.")
+
+
 def register(registry: ToolRegistry) -> None:
     @registry.tool(
         "system_status",
@@ -33,6 +42,7 @@ def register(registry: ToolRegistry) -> None:
         NoArgs,
     )
     def system_status(ctx: ToolContext, args: NoArgs):
+        _server_wide(ctx)
         status = observability.system_status(ctx.session, ctx.services)
         status["database"].pop("counts", None)
         return status
@@ -44,6 +54,7 @@ def register(registry: ToolRegistry) -> None:
         untrusted_output=True,
     )
     def recent_errors(ctx: ToolContext, args: ErrorsArgs):
+        _server_wide(ctx)
         rows = observability.list_errors(ctx.session, resolved=False, limit=args.limit)
         return [
             {

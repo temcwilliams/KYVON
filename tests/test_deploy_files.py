@@ -38,3 +38,18 @@ def test_env_example_has_placeholders_only():
     text = (ROOT / ".env.example").read_text()
     assert "your-groq-api-key-here" in text
     assert "gsk_" not in text
+
+
+def test_hosted_env_template_has_placeholders_only():
+    text = (ROOT / ".env.hosted.example").read_text()
+    for forbidden in ("gsk_", "sk_live", "sk_test_", "whsec_"):
+        assert forbidden not in text
+    assert "your-groq-api-key-here" in text and "KYVON_SIGNUP_OPEN=false" in text
+    assert "STRIPE_SECRET_KEY=\n" in text  # empty, never a real key
+
+
+def test_compose_runs_one_scheduler_and_migrates_once():
+    text = (ROOT / "deploy" / "docker-compose.hosted.yml").read_text()
+    assert text.count('kyvon", "scheduler"') == 1
+    assert 'KYVON_SCHEDULER: "false"' in text  # web workers do not run it
+    assert "service_completed_successfully" in text  # web waits for the migration

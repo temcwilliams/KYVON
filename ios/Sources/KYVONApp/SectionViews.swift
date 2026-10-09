@@ -189,6 +189,7 @@ struct InboxView: View {
 struct SettingsView: View {
     @ObservedObject var model: AppModel
     @State private var confirmSignOut = false
+    @State private var showDelete = false
 
     var body: some View {
         NavStack {
@@ -213,6 +214,16 @@ struct SettingsView: View {
                             set: { value in Task { await model.updatePreferences(voiceReplies: value) } }))
                     }
                 }
+                if let usage = model.account?.usage {
+                    planSection(usage)
+                }
+                if model.account?.hosted == true {
+                    Section {
+                        Button("Delete my account", role: .destructive) { showDelete = true }
+                    } footer: {
+                        Text("Permanently deletes your account and everything in it.")
+                    }
+                }
                 Section("About") {
                     Link("Privacy policy", destination: LegalLinks.privacy)
                     Link("Terms of use", destination: LegalLinks.terms)
@@ -227,10 +238,42 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .refreshable { await model.refreshPreferences() }
+            .sheet(isPresented: $showDelete) { DeleteAccountView(model: model, isPresented: $showDelete) }
             .confirmationDialog("Sign out of this device?", isPresented: $confirmSignOut, titleVisibility: .visible) {
                 Button("Sign out", role: .destructive) { Task { await model.signOut() } }
             }
         }
+    }
+
+    @ViewBuilder private func planSection(_ usage: UsageSummary) -> some View {
+        Section("Plan and usage") {
+            LabeledRow(title: "Plan", value: usage.planName)
+            if let email = model.account?.user.email {
+                LabeledRow(title: "Email", value: usage.emailVerified ? email : "\(email) (not confirmed)")
+            }
+            if !usage.emailVerified {
+                Button("Resend the confirmation email") { Task { await model.resendVerification() } }
+            }
+            if let limits = usage.limits {
+                usageRow("Messages", used: usage.used.messages, limit: limits.messages)
+                usageRow("AI usage", used: usage.used.tokens, limit: limits.tokens)
+                usageRow("Voice clips", used: usage.used.voice, limit: limits.voice)
+                usageRow("Web searches", used: usage.used.searches, limit: limits.searches)
+            }
+        }
+    }
+
+    private func usageRow(_ name: String, used: Int, limit: Int) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(name)
+                Spacer()
+                Text("\(used) of \(limit)").foregroundStyle(.secondary)
+            }
+            ProgressView(value: Double(min(used, max(limit, 1))), total: Double(max(limit, 1)))
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(name): \(used) of \(limit) used")
     }
 
     private static var version: String {
@@ -241,6 +284,41 @@ struct SettingsView: View {
                         _ change: @escaping (String) async -> Void) -> some View {
         Picker(title, selection: Binding(get: { current }, set: { value in Task { await change(value) } })) {
             ForEach(options, id: \.self) { Text($0.capitalized).tag($0) }
+        }
+    }
+}
+
+// MARK: Delete account
+
+/// Apple requires apps that offer account creation to let people delete the account inside the app.
+struct DeleteAccountView: View {
+    @ObservedObject var model: AppModel
+    @Binding var isPresented: Bool
+    @State private var password = ""
+    @State private var working = false
+
+    var body: some View {
+        NavStack {
+            Form {
+                Section {
+                    Text("This permanently deletes your account, chats, memories and tasks, and cancels any subscription. It cannot be undone.")
+                    SecureField("Your password", text: $password).textContentType(.password)
+                }
+                if let error = model.errorText { Section { ErrorBanner(text: error) } }
+                Section {
+                    Button("Delete everything", role: .destructive) {
+                        working = true
+                        Task {
+                            let done = await model.deleteAccount(password: password)
+                            working = false
+                            if done { isPresented = false }
+                        }
+                    }
+                    .disabled(password.isEmpty || working)
+                }
+            }
+            .navigationTitle("Delete account")
+            .toolbar { ToolbarItem { Button("Cancel") { isPresented = false } } }
         }
     }
 }

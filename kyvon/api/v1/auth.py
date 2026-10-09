@@ -1,32 +1,64 @@
-"""Login, logout and device-token management."""
+"""Login, logout, device tokens, and (hosted mode) sign-up, email verification and password reset."""
 
 from __future__ import annotations
 
 import secrets
+from datetime import timedelta
 
 from flask import Blueprint, g, jsonify, request
 
 from kyvon.api.deps import (
     CSRF_COOKIE,
     TOKEN_COOKIE,
+    enforce_ip_rate,
     get_session,
     login_required,
     parse_json,
     services,
 )
 from kyvon.api.errors import ApiError
-from kyvon.api.schemas import LoginRequest
-from kyvon.services import auth_service
+from kyvon.api.schemas import (
+    EmailRequest,
+    LoginRequest,
+    ResetPasswordRequest,
+    SignupRequest,
+    TokenRequest,
+)
+from kyvon.services import auth_service, email_service
 
 bp = Blueprint("auth", __name__, url_prefix="/api/v1/auth")
+
+
+ACCOUNT_LOCK_FAILURES = 10
+
+
+def _account_locked(svc, account_key: str) -> bool:
+    throttle = svc.login_throttle
+    # Reuse the throttle's own window; the account limit is higher than the per-address one.
+    return _failures(throttle, account_key) >= ACCOUNT_LOCK_FAILURES
+
+
+def _failures(throttle, key: str) -> int:
+    if hasattr(throttle, "count"):
+        return throttle.count(key)
+    return throttle.max_failures if throttle.blocked(key) else 0
 
 
 def _throttle_key(username: str) -> str:
     return f"{request.remote_addr}|{auth_service.normalize_username(username)}"
 
 
-def _user_json(user) -> dict:
-    return {"id": user.id, "username": user.username}
+def user_json(user) -> dict:
+    return {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "email_verified": user.email_verified,
+        "role": user.role,
+    }
+
+
+_user_json = user_json
 
 
 def _set_auth_cookies(response, raw_token: str, max_age: int) -> None:
@@ -55,16 +87,25 @@ def login():
     svc = services()
     body = parse_json(LoginRequest)
     key = _throttle_key(body.username)
+    # Hosted: also count failures against the account itself, from any address, so a spread-out
+    # (many-IP) password guess is stopped too. Ten wrong passwords lock it for the window.
+    account_key = f"acct|{auth_service.normalize_username(body.username)}"[:150]
 
-    if svc.login_throttle.blocked(key):
+    if svc.login_throttle.blocked(key) or (
+        svc.settings.hosted and _account_locked(svc, account_key)
+    ):
         raise ApiError(429, "too_many_attempts", "Too many failed attempts. Try again later.")
 
     session = get_session()
     user = auth_service.verify_login(session, body.username, body.password)
     if user is None:
         svc.login_throttle.record_failure(key)
+        if svc.settings.hosted:
+            svc.login_throttle.record_failure(account_key)
         raise ApiError(401, "invalid_credentials", "Invalid username or password.")
     svc.login_throttle.reset(key)
+    if svc.settings.hosted:
+        svc.login_throttle.reset(account_key)
 
     ttl_days = svc.settings.token_ttl_days
     raw, token = auth_service.issue_token(
@@ -81,6 +122,128 @@ def login():
     if body.cookie:
         _set_auth_cookies(response, raw, ttl_days * 86400)
     return response
+
+
+GENERIC_SIGNUP = {"ok": True, "message": "Check your email to finish creating your account."}
+GENERIC_RESET = {
+    "ok": True,
+    "message": "If that address has an account, we sent a link to reset the password.",
+}
+
+
+def _require_hosted_signup() -> None:
+    if not services().settings.signup_enabled:
+        raise ApiError(403, "signup_closed", "Sign-up is not open right now.")
+
+
+def _send_verification(user) -> None:
+    svc = services()
+    token = auth_service.issue_email_token(
+        get_session(),
+        user,
+        "verify",
+        ttl=timedelta(hours=svc.settings.verify_ttl_hours),
+    )
+    email_service.deliver(
+        svc.email, user.email, email_service.verification_message(svc.settings, token)
+    )
+
+
+@bp.post("/signup")
+def signup():
+    """Create an account. The answer is the same whether or not the address is already taken,
+    so this cannot be used to discover who has an account."""
+    _require_hosted_signup()
+    enforce_ip_rate("signup")
+    svc = services()
+    body = parse_json(SignupRequest)
+    if not body.accept_terms:
+        raise ApiError(400, "terms_required", "You need to accept the terms to create an account.")
+    try:
+        email = auth_service.validate_email(body.email)
+        auth_service.validate_password(body.password)
+    except auth_service.AuthError as error:
+        raise ApiError(400, "invalid_request", str(error)) from error
+
+    session = get_session()
+    if auth_service.find_by_email(session, email) is not None:
+        auth_service.burn_hash(body.password)  # keep the timing of both outcomes alike
+        email_service.deliver(
+            svc.email, email, email_service.already_registered_message(svc.settings)
+        )
+        return jsonify(GENERIC_SIGNUP), 202
+    try:
+        user = auth_service.create_user(
+            session, email=email, password=body.password, terms_version=svc.settings.terms_version
+        )
+    except auth_service.AuthError:
+        # Lost a race with another sign-up for the same address: answer exactly as for any duplicate.
+        email_service.deliver(
+            svc.email, email, email_service.already_registered_message(svc.settings)
+        )
+        return jsonify(GENERIC_SIGNUP), 202
+    _send_verification(user)
+    return jsonify(GENERIC_SIGNUP), 202
+
+
+@bp.post("/verify-email")
+def verify_email():
+    enforce_ip_rate("verify")
+    user = auth_service.verify_email(get_session(), parse_json(TokenRequest).token)
+    if user is None:
+        raise ApiError(400, "invalid_token", "That link is invalid or has expired.")
+    return jsonify({"ok": True, "email_verified": True})
+
+
+@bp.post("/resend-verification")
+@login_required
+def resend_verification():
+    if g.user.email is None or g.user.email_verified:
+        return jsonify({"ok": True})
+    allowed, wait = services().auth_limiter.hit(f"resend:{g.user.id}", 2)
+    if not allowed:
+        raise ApiError(
+            429, "rate_limited", "Please wait before asking again.", {"Retry-After": str(wait)}
+        )
+    _send_verification(g.user)
+    return jsonify({"ok": True})
+
+
+@bp.post("/forgot-password")
+def forgot_password():
+    _require_hosted()
+    enforce_ip_rate("forgot")
+    svc = services()
+    body = parse_json(EmailRequest)
+    session = get_session()
+    user = auth_service.find_by_email(session, body.email)
+    if user is not None and user.disabled_at is None:
+        token = auth_service.issue_email_token(
+            session, user, "reset", ttl=timedelta(minutes=svc.settings.reset_ttl_minutes)
+        )
+        email_service.deliver(
+            svc.email, user.email, email_service.reset_message(svc.settings, token)
+        )
+    return jsonify(GENERIC_RESET), 202
+
+
+def _require_hosted() -> None:
+    if not services().settings.hosted:
+        raise ApiError(404, "not_found", "Not found.")
+
+
+@bp.post("/reset-password")
+def reset_password():
+    _require_hosted()
+    enforce_ip_rate("reset")
+    body = parse_json(ResetPasswordRequest)
+    try:
+        user = auth_service.reset_password(get_session(), body.token, body.password)
+    except auth_service.AuthError as error:
+        raise ApiError(400, "invalid_request", str(error)) from error
+    if user is None:
+        raise ApiError(400, "invalid_token", "That link is invalid or has expired.")
+    return jsonify({"ok": True})
 
 
 @bp.post("/logout")

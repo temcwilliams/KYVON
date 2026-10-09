@@ -287,3 +287,78 @@ class FakeSTT:
         if self.error:
             raise self.error
         return self.text
+
+
+class FakeEmail:
+    """Collects outgoing email instead of sending it. ``token(kind)`` pulls the emailed token."""
+
+    def __init__(self):
+        self.sent: list[tuple[str, str, str]] = []
+        self.fail = False
+
+    def send(self, to, subject, body):
+        from kyvon.services.email_service import EmailError
+
+        if self.fail:
+            raise EmailError("simulated failure")
+        self.sent.append((to, subject, body))
+
+    def to(self, address):
+        return [m for m in self.sent if m[0] == address]
+
+    def token(self, address, kind):
+        """The token in the most recent '/#<kind>=...' link sent to ``address``."""
+        for to, _subject, body in reversed(self.sent):
+            if to == address:
+                match = re.search(rf"#{kind}=([A-Za-z0-9_-]+)", body)
+                if match:
+                    return match.group(1)
+        raise AssertionError(f"no {kind} link was emailed to {address}")
+
+
+class FakeStripe:
+    """The high-level billing client, recording what the app asked Stripe to do."""
+
+    def __init__(self):
+        self.calls: list[tuple] = []
+        self.fail_cancel = False
+        self.customers = 0
+
+    def create_customer(self, *, email, user_id):
+        self.customers += 1
+        self.calls.append(("customer", email, user_id))
+        return f"cus_{user_id}"
+
+    def create_checkout_session(self, **kwargs):
+        self.calls.append(("checkout", kwargs))
+        return f"https://checkout.stripe.test/session/{kwargs['user_id']}"
+
+    def create_portal_session(self, **kwargs):
+        self.calls.append(("portal", kwargs))
+        return "https://billing.stripe.test/portal"
+
+    def cancel_subscription(self, subscription_id):
+        from kyvon.services.errors import IntegrationError
+
+        if self.fail_cancel:
+            raise IntegrationError("stripe down")
+        self.calls.append(("cancel", subscription_id))
+
+
+class FakeHTTP:
+    """A requests.Session stand-in that records calls and replays queued responses."""
+
+    def __init__(self):
+        self.calls: list[dict] = []
+        self.responses: list = []
+
+    def request(self, method, url, **kwargs):
+        self.calls.append({"method": method, "url": url, **kwargs})
+        item = (
+            self.responses.pop(0)
+            if self.responses
+            else FakeHTTPResponse(200, {"id": "x", "url": "u"})
+        )
+        if isinstance(item, Exception):
+            raise item
+        return item

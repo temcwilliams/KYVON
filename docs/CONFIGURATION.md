@@ -14,14 +14,17 @@ directory; real environment variables win over `.env`. **Never commit real value
 | `KYVON_AGENT_MAX_DEPTH` | `1` | Whole number, 1 to 3. |
 | `KYVON_AGENT_MAX_TOOL_CALLS` | `12` | Whole number, 1 to 50. |
 | `KYVON_AGENT_TIMEOUT_CAP_SECONDS` | `150` | Whole number, 10 to 900. |
+| `KYVON_AUTH_RATE_PER_MINUTE` | `10` | Sign-up, password reset and verification requests allowed per client IP per minute. |
 | `KYVON_AUTOMATION_MAX_PER_USER` | `50` | Whole number, 1 to 1000. |
 | `KYVON_AUTO_TITLE_LLM` | `true` | Let the model write conversation titles. |
+| `KYVON_BILLING_GRACE_DAYS` | `3` | Days a past-due subscription keeps the paid plan before dropping to free. |
 | `KYVON_CONFIRMATION_TTL_MINUTES` | `60` | Whole number, 1 to 10080. |
 | `KYVON_CONTEXT_MAX_MESSAGES` | `40` | Whole number, 2 to 500. |
 | `KYVON_CONTEXT_MAX_TOKENS` | `6000` | Whole number, 500 to 200000. |
 | `KYVON_CONTEXT_RESERVE_TOKENS` | `1500` | Whole number, 100 to 32000. |
 | `KYVON_COOKIE_SECURE` | `true in production` | Mark sign-in cookies Secure (needs HTTPS). |
 | `KYVON_DATA_DIR` | `data` | Folder for the database, error log and legacy memory file (relative to the working directory). |
+| `KYVON_EMAIL_FROM` | `(none)` | Sender address for verification and reset emails (hosted mode). |
 | `KYVON_ENCRYPTION_KEY` | `(none)` | Encrypts stored OAuth tokens. `flask --app wsgi kyvon generate-key`. **Losing it disconnects Google Calendar.** Secret. |
 | `KYVON_ENV` | `development` | `development`, `testing` or `production`. Production marks cookies Secure and logs JSON. |
 | `KYVON_HERMES_ALLOW_REMOTE` | `false` | Allow a Hermes URL outside the private network. |
@@ -37,14 +40,35 @@ directory; real environment variables win over `.env`. **Never commit real value
 | `KYVON_MAX_REQUEST_BYTES` | `1000000` | Whole number, 1024 to 50000000. |
 | `KYVON_MEMORY_MAX` | `2000` | Whole number, 10 to 100000. |
 | `KYVON_MEMORY_RETRIEVAL_K` | `8` | Whole number, 1 to 50. |
+| `KYVON_MODE` | `personal` | `personal` (one owner, the default) or `hosted` (many users with email accounts, quotas and billing). |
 | `KYVON_MODEL` | `openai/gpt-oss-120b` | Chat model (Groq). |
+| `KYVON_PRICE_LABEL` | `(none)` | Text shown beside the upgrade button, such as `$9 / month`. |
+| `KYVON_PRIVACY_URL` | `(none)` | Public URL of the privacy policy, linked from the sign-up form (hosted mode). |
+| `KYVON_PROXY_HOPS` | `0` | Number of trusted reverse proxies in front of the app, so the real client IP is used for limits. |
 | `KYVON_PUBLIC_URL` | `http://localhost:8080` | How browsers reach KYVON (used for the Google OAuth redirect and trusted origin). |
+| `KYVON_QUOTA_FREE_MESSAGES` | `30` | Hosted: chat messages per month on the free plan. |
+| `KYVON_QUOTA_FREE_SEARCHES` | `5` | Hosted: web searches per month on the free plan. |
+| `KYVON_QUOTA_FREE_TOKENS` | `60000` | Hosted: model tokens per month on the free plan (the real cost cap). |
+| `KYVON_QUOTA_FREE_VOICE` | `10` | Hosted: voice transcriptions per month on the free plan. |
+| `KYVON_QUOTA_PRO_MESSAGES` | `3000` | Hosted: chat messages per month on the paid plan. |
+| `KYVON_QUOTA_PRO_SEARCHES` | `300` | Hosted: web searches per month on the paid plan. |
+| `KYVON_QUOTA_PRO_TOKENS` | `6000000` | Hosted: model tokens per month on the paid plan. |
+| `KYVON_QUOTA_PRO_VOICE` | `500` | Hosted: voice transcriptions per month on the paid plan. |
 | `KYVON_RATE_LIMIT_API` | `300` | Whole number, 1 to 100000. |
 | `KYVON_RATE_LIMIT_CHAT` | `30` | Whole number, 1 to 10000. |
+| `KYVON_RESET_TTL_MINUTES` | `60` | How long a password reset link stays valid. |
 | `KYVON_SCHEDULER` | `true` | Run the automation scheduler inside the web process. |
 | `KYVON_SCHEDULER_TICK_SECONDS` | `30` | Whole number, 1 to 3600. |
+| `KYVON_SIGNUP_OPEN` | `false` | Hosted mode only: let new people sign up. Stays closed until you set this. |
+| `KYVON_SMTP_HOST` | `(none)` | SMTP server for outgoing email (hosted mode). |
+| `KYVON_SMTP_PASSWORD` | `(none)` | SMTP password. Secret. |
+| `KYVON_SMTP_PORT` | `587` | SMTP port. |
+| `KYVON_SMTP_STARTTLS` | `true` | Use STARTTLS on the SMTP connection. |
+| `KYVON_SMTP_USER` | `(none)` | SMTP username. |
 | `KYVON_STT_MODEL` | `whisper-large-v3-turbo` | Speech-to-text model (Groq Whisper). |
 | `KYVON_SUMMARY_TRIGGER_MESSAGES` | `30` | Whole number, 6 to 1000. |
+| `KYVON_TERMS_URL` | `(none)` | Public URL of the terms of use, linked from the sign-up form (hosted mode). |
+| `KYVON_TERMS_VERSION` | `1` | Version label recorded when someone accepts the terms. Bump it when the terms change. |
 | `KYVON_TOKEN_TTL_DAYS` | `30` | Whole number, 1 to 3650. |
 | `KYVON_TOOL_MAX_ITERATIONS` | `5` | Whole number, 1 to 20. |
 | `KYVON_TOOL_TIMEOUT_SECONDS` | `30` | Whole number, 1 to 600. |
@@ -52,8 +76,12 @@ directory; real environment variables win over `.env`. **Never commit real value
 | `KYVON_VAPID_PRIVATE_KEY` | `(none)` | Web Push private key. Secret. |
 | `KYVON_VAPID_PUBLIC_KEY` | `(none)` | Web Push public key. `flask --app wsgi kyvon generate-vapid-keys`. |
 | `KYVON_VAPID_SUBJECT` | `(none)` | Contact for push services, e.g. `mailto:you@example.com`. |
+| `KYVON_VERIFY_TTL_HOURS` | `48` | How long an email verification link stays valid. |
 | `KYVON_WEB_MODEL` | `groq/compound` | Web research model (Groq). |
 | `LOG_LEVEL` | `INFO` | DEBUG, INFO, WARNING, ERROR or CRITICAL. |
 | `PORT` | `8080` | Port gunicorn / `python app.py` listens on. Keep 8080 for the Cloudflare Tunnel. |
+| `STRIPE_PRICE_ID` | `(none)` | Stripe Price id of the paid subscription. |
+| `STRIPE_SECRET_KEY` | `(none)` | Stripe secret key (hosted mode billing). Secret. |
+| `STRIPE_WEBHOOK_SECRET` | `(none)` | Signing secret of the Stripe webhook endpoint (`/api/v1/billing/webhook`). Secret. |
 
 See [.env.example](../.env.example) for a starter file.

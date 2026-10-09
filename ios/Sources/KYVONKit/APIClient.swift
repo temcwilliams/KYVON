@@ -192,6 +192,52 @@ public final class APIClient: @unchecked Sendable {
         return (result.notifications, result.unreadCount)
     }
 
+    // MARK: hosted accounts
+
+    /// Public: which mode the server is in and whether sign-up is open.
+    public func publicConfig() async throws -> PublicConfig {
+        try await send(makeRequest("GET", "/config", authenticated: false), as: PublicConfig.self)
+    }
+
+    /// Creates an account. The answer is the same whether or not the email was already registered.
+    public func signUp(email: String, password: String, acceptTerms: Bool) async throws -> String {
+        struct Body: Encodable { let email: String; let password: String; let acceptTerms: Bool }
+        struct Reply: Decodable { let message: String? }
+        let body = try body(Body(email: email, password: password, acceptTerms: acceptTerms))
+        let reply = try await send(makeRequest("POST", "/auth/signup", body: body, authenticated: false), as: Reply.self)
+        return reply.message ?? "Check your email to finish creating your account."
+    }
+
+    public func forgotPassword(email: String) async throws -> String {
+        struct Body: Encodable { let email: String }
+        struct Reply: Decodable { let message: String? }
+        let body = try body(Body(email: email))
+        let reply = try await send(makeRequest("POST", "/auth/forgot-password", body: body, authenticated: false), as: Reply.self)
+        return reply.message ?? "If that address has an account, we sent a link to reset the password."
+    }
+
+    public func resendVerification() async throws {
+        _ = try await send(makeRequest("POST", "/auth/resend-verification"), as: OkEnvelope.self)
+    }
+
+    public func account() async throws -> AccountInfo {
+        try await send(makeRequest("GET", "/account"), as: AccountInfo.self)
+    }
+
+    public func changePassword(current: String, new: String) async throws {
+        struct Body: Encodable { let currentPassword: String; let newPassword: String }
+        let body = try body(Body(currentPassword: current, newPassword: new))
+        _ = try await send(makeRequest("POST", "/account/change-password", body: body), as: OkEnvelope.self)
+    }
+
+    /// Permanently deletes the account and its data. Needs the password again.
+    public func deleteAccount(password: String) async throws {
+        struct Body: Encodable { let password: String }
+        let body = try body(Body(password: password))
+        _ = try await send(makeRequest("DELETE", "/account", body: body), as: OkEnvelope.self)
+        tokens.clear()
+    }
+
     // MARK: tasks, memory, inbox, settings
 
     public func createTask(title: String, priority: String = "normal") async throws {

@@ -32,11 +32,30 @@ def ready():
     return jsonify({"status": "ready"})
 
 
+@bp.get("/config")
+def public_config():
+    """What the sign-in page needs to know before anyone is signed in. Nothing secret."""
+    settings = services().settings
+    return jsonify(
+        {
+            "mode": settings.mode,
+            "signup_open": settings.signup_enabled,
+            "billing": settings.billing_configured,
+            "price_label": settings.price_label if settings.billing_configured else "",
+            "terms_version": settings.terms_version,
+            "privacy_url": settings.privacy_url,
+            "terms_url": settings.terms_url,
+        }
+    )
+
+
 @bp.get("/status")
 @login_required
 def status():
     svc = services()
     deep = request.args.get("deep", "").lower() in ("1", "true", "yes")
+    if deep and svc.settings.hosted and not g.user.is_admin:
+        deep = False  # a deep check makes a paid model call; not for ordinary hosted accounts
     results = run_diagnostics(
         memory_count=lambda: len(MemoryService(get_session(), g.user.id)),
         llm=svc.llm,

@@ -138,3 +138,28 @@ This document is the result of the Phase 15 review. Each claim below is backed b
 .venv/bin/bandit -c pyproject.toml -r kyvon   # static analysis
 .venv/bin/pip-audit -r requirements.txt       # dependency advisories
 ```
+
+
+## Hosted mode (`KYVON_MODE=hosted`)
+
+A public, multi-user service has a different threat model from a personal install. What changes, and what is
+done about it (all tested; see `tests/test_hosted_accounts.py`, `test_usage_quotas.py`, `test_billing.py`):
+
+| Threat | Defence |
+|---|---|
+| One user reads another's data | Every table is scoped by `user_id`; isolation tests; `/export` returns only the caller's data |
+| Ordinary users see server-wide state | Admin role gate on `/admin/*` and on the diagnostics tools; deep status checks need admin |
+| Sign-up used to discover who has an account | Identical answer and similar timing whether the email exists; forgot-password likewise |
+| Password guessing | Per-address and per-account lockout, stored in the database so it holds across workers; slow password hashing |
+| Email links stolen from logs or Referer | Tokens ride in the URL fragment; single-use; hashed at rest; expire; replaced by a newer link |
+| Header injection through the email field | Strict address validation and header-newline refusal at the sender |
+| Cost abuse (the real risk of a free tier) | Per-plan monthly message, token, voice and search limits checked before spending; email must be verified; rate limits; sign-up closed until opened |
+| Forged payment events | HMAC signature over the raw body with a replay window; processed event ids; stale events ignored; unknown customers ignored |
+| Open redirect from billing responses | The browser only follows `https://checkout.stripe.com` and `https://billing.stripe.com` |
+| Shared server resources (folders, private endpoints) | Logseq and Hermes are disabled in hosted mode |
+| Stripe key or card data exposure | Card details never reach KYVON; secrets are never logged or shown; the public `/config` exposes no secrets (tested) |
+| Account deleted while still being billed | Deletion cancels the subscription first and is refused if that cannot be confirmed |
+
+**Residual risks:** AI replies can be wrong; prompts and replies go to the AI provider; concurrent requests can
+overshoot a limit by one request; there is no content moderation or automated abuse detection beyond limits;
+the application does not encrypt conversation text at rest; nothing has been penetration tested.

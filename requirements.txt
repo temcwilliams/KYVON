@@ -7,3 +7,4 @@ alembic>=1.13,<2
 pydantic>=2.8,<3
 gunicorn>=23,<27
 cryptography>=42,<60
+psycopg[binary]>=3.2,<4   # PostgreSQL driver (hosted mode)

@@ -38,6 +38,34 @@ service.
 | GitHub Actions CI | Same commands run locally, except the JavaScript syntax check (no Node): modules were loaded in a browser instead | **Never run on GitHub** |
 | The Ubuntu VM | No | **Untouched** |
 
+## Hosted service mode (added after the original roadmap)
+
+`KYVON_MODE=hosted` (default is `personal`, unchanged). Everything below is implemented and tested with fakes,
+and the database layer is also exercised against PostgreSQL in CI. **None of it has run against real Stripe, a
+real mail server, real users, or a real host.**
+
+| Area | What exists | Where |
+|---|---|---|
+| Accounts | Email sign-up (closed until `KYVON_SIGNUP_OPEN`), verification and reset by single-use hashed links in the URL fragment, login by email or username, export, deletion, terms acceptance recorded | `services/auth_service.py`, `api/v1/auth.py`, `api/v1/account.py` |
+| Roles and moderation | `admin` role gates server-wide endpoints and diagnostics tools; user search, suspend and restore; last-admin guard | `api/v1/admin.py` |
+| Quotas | Monthly messages, tokens, voice clips and searches per plan, checked before and recorded after every spend; 402 with details; failed model calls still count | `services/usage_service.py` |
+| Billing | Stripe Checkout and Customer Portal, signed idempotent webhooks tolerant of reordering, plan from subscription state with grace, cancel before deletion | `integrations/stripe_billing.py`, `services/billing_service.py` |
+| Scale-out | Database-backed shared rate limits and login lockout (also per account), safe agent recovery with several workers, dedicated `kyvon scheduler`, pooled Postgres engine | `utils/rate_limit.py`, `cli.py`, `db.py` |
+| Deployment | Compose file, systemd scheduler unit, env template, operator guide, CI job with a live Postgres | `deploy/`, `docs/HOSTED_DEPLOYMENT.md` |
+| Clients | Web: sign-up, confirm, reset, Account panel (plan, usage, billing, password, export, delete). iPhone: sign-up, plan and usage, in-app deletion (not compiled until CI) | `web/js/account.js`, `ios/` |
+| Legal | Drafts for privacy policy, terms, subscription terms, acceptable use, subprocessors, operations | `docs/legal/hosted/` |
+
+### Hosted mode: what is not done or not verified
+
+* **Apple in-app purchase is not implemented.** The App Store build must not sell or link to the Stripe plan.
+* **No re-acceptance flow** when terms change; **no email change** flow; **no content moderation** of AI output.
+* **Not load tested.** Limits can be overshot by one request under concurrency; titles and summaries are not metered.
+* **Postgres** is verified only by CI (a live-database test and offline migration rendering), not on a production host.
+* **Stripe, SMTP and Groq at scale** are tested with fakes only. Use Stripe test mode first.
+* Backups retain deleted data until they rotate; conversation text is stored unencrypted by the application.
+* Google Calendar for the public requires Google's OAuth verification.
+* The legal documents are drafts; they need a lawyer.
+
 ## Architecture
 
 ```

@@ -24,6 +24,7 @@ targets:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: KYVON
+        KYVONHostedURL: ""   # set to your hosted service's https address to skip the server-address step
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]

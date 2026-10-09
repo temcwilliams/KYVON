@@ -22,6 +22,16 @@ enum LegalLinks {
     static let terms = URL(string: "https://github.com/temcwilliams/kyvon/blob/main/docs/legal/TERMS_OF_USE.md")!
 }
 
+/// The address of a hosted KYVON service, if this build was made for one. Set the Info.plist key
+/// `KYVONHostedURL` (project.yml) to skip the "enter your server address" step. Empty by default,
+/// which keeps the app a client for your own server.
+public enum HostedConfig {
+    public static var urlString: String? {
+        let value = (Bundle.main.object(forInfoDictionaryKey: "KYVONHostedURL") as? String) ?? ""
+        return value.trimmingCharacters(in: .whitespaces).isEmpty ? nil : value
+    }
+}
+
 /// A rounded card row used by every list so the screens feel like one app.
 struct CardRow<Content: View>: View {
     @ViewBuilder var content: Content
@@ -74,6 +84,25 @@ extension View {
         }
         #else
         self.autocorrectionDisabled()
+        #endif
+    }
+
+    /// An email address field (the content type exists on iOS; macOS only needs the CI build to compile).
+    @ViewBuilder func emailInput() -> some View {
+        #if os(iOS)
+        self.textContentType(.emailAddress).textInputAutocapitalization(.never).autocorrectionDisabled()
+            .keyboardType(.emailAddress)
+        #else
+        self.autocorrectionDisabled()
+        #endif
+    }
+
+    /// A "choose a new password" field, so the system can offer a strong one.
+    @ViewBuilder func newPasswordInput() -> some View {
+        #if os(iOS)
+        self.textContentType(.newPassword)
+        #else
+        self
         #endif
     }
 

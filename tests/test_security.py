@@ -20,7 +20,13 @@ SOURCE = ROOT / "kyvon"
 PUBLIC_ENDPOINTS = {
     "v1.health",
     "v1.ready",
+    "v1.public_config",  # the sign-in page needs it; contains no secrets (tested below)
     "auth.login",
+    "auth.signup",  # hosted sign-up: gated by KYVON_SIGNUP_OPEN, rate-limited, same answer always
+    "auth.verify_email",  # one-time emailed token
+    "auth.forgot_password",
+    "auth.reset_password",  # one-time emailed token
+    "billing.webhook",  # called by Stripe: authenticated by its signature, not a session
     "calendar.callback",  # identified by a one-time OAuth state
     "static",
     "index",
@@ -379,6 +385,7 @@ def test_outbound_http_is_confined_to_known_modules():
         "__init__.py",  # creates the shared session
         "integrations/geocode_nominatim.py",
         "integrations/google_calendar.py",
+        "integrations/stripe_billing.py",
         "integrations/weather_openmeteo.py",
         "integrations/webpush.py",
         "llm/openai_compat.py",
@@ -386,7 +393,13 @@ def test_outbound_http_is_confined_to_known_modules():
 
 
 def test_outbound_requests_never_follow_redirects():
-    for name in ("geocode_nominatim", "google_calendar", "webpush", "weather_openmeteo"):
+    for name in (
+        "geocode_nominatim",
+        "google_calendar",
+        "stripe_billing",
+        "webpush",
+        "weather_openmeteo",
+    ):
         text = (SOURCE / "integrations" / f"{name}.py").read_text()
         assert (
             text.count("allow_redirects=False")
@@ -516,6 +529,12 @@ def test_outbound_session_stores_no_cookies_and_ignores_proxy_settings(app):
 def test_frontend_only_navigates_to_google_and_never_builds_urls_from_data():
     calendar = (ROOT / "web" / "js" / "calendar.js").read_text()
     assert 'startsWith("https://accounts.google.com/")' in calendar
+    account = (ROOT / "web" / "js" / "account.js").read_text()
+    # Billing may only send the browser to Stripe's own https pages, checked before navigating.
+    assert (
+        'url.protocol === "https:"' in account and "STRIPE_HOSTS.includes(url.hostname)" in account
+    )
+    assert account.index("isStripeUrl(data.url)") < account.index("location.assign(data.url)")
     for path in (ROOT / "web" / "js").glob("*.js"):
         text = path.read_text()
         assert "location.href =" not in text and "window.open(" not in text
@@ -523,3 +542,36 @@ def test_frontend_only_navigates_to_google_and_never_builds_urls_from_data():
         assert (
             "localStorage" not in text and "sessionStorage" not in text
         )  # no tokens or data in web storage
+
+
+def test_public_config_exposes_only_non_secret_switches(tmp_path):
+    from tests.test_hosted_accounts import hosted_settings
+
+    app = make_app(
+        hosted_settings(
+            tmp_path,
+            STRIPE_SECRET_KEY="sk_test_SECRET",
+            STRIPE_WEBHOOK_SECRET="whsec_SECRET",
+            STRIPE_PRICE_ID="price_1",
+            KYVON_SMTP_PASSWORD="smtp-SECRET",
+        )
+    )
+    body = app.test_client().get("/api/v1/config")
+    assert body.status_code == 200
+    data = body.get_json()
+    assert data["mode"] == "hosted" and data["signup_open"] is True and data["billing"] is True
+    assert "SECRET" not in body.get_data(as_text=True)
+    assert set(data) == {
+        "mode",
+        "signup_open",
+        "billing",
+        "price_label",
+        "terms_version",
+        "privacy_url",
+        "terms_url",
+    }
+
+
+def test_public_config_in_personal_mode_says_so(app):
+    data = app.test_client().get("/api/v1/config").get_json()
+    assert data["mode"] == "personal" and data["signup_open"] is False and data["billing"] is False

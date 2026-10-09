@@ -16,6 +16,7 @@ from kyvon.services.settings_service import (
     render_profile,
     timezone_for,
 )
+from kyvon.services.usage_service import UsageGate
 
 
 def connected_services(services: Any, session: Session, user_id: int, prefs) -> list[str]:
@@ -63,4 +64,5 @@ def make_chat_service(services: Any, session: Session, user_id: int) -> ChatServ
         ),
         executor=services.executor,
         tool_names=tool_names,
+        usage=UsageGate(session, settings, user_id) if settings.hosted else None,
     )

@@ -10,9 +10,11 @@ from werkzeug.exceptions import HTTPException
 
 from kyvon.services.errors import (
     ConflictError,
+    EmailNotVerified,
     IntegrationError,
     NotConnectedError,
     NotFoundError,
+    QuotaExceeded,
     ValidationFailure,
 )
 from kyvon.utils.redact import redact
@@ -27,9 +29,14 @@ class ApiError(Exception):
         self.headers = headers or {}
 
 
-def error_response(status: int, code: str, message: str, headers: dict | None = None):
+def error_response(
+    status: int, code: str, message: str, headers: dict | None = None, details: dict | None = None
+):
     # Messages sometimes come from exceptions (provider errors); never let a secret through.
-    body = jsonify({"error": {"code": code, "message": redact(message)}})
+    error = {"code": code, "message": redact(message)}
+    if details:
+        error["details"] = details
+    body = jsonify({"error": error})
     if headers:
         body.headers.update(headers)
     return body, status
@@ -39,6 +46,16 @@ def register_error_handlers(app: Flask) -> None:
     @app.errorhandler(ApiError)
     def _api_error(error: ApiError):
         return error_response(error.status, error.code, error.message, error.headers)
+
+    @app.errorhandler(QuotaExceeded)
+    def _quota(error: QuotaExceeded):
+        return error_response(402, "quota_exceeded", str(error), details=error.details())
+
+    @app.errorhandler(EmailNotVerified)
+    def _unverified(error: EmailNotVerified):
+        return error_response(
+            403, "email_unverified", "Confirm your email address to use KYVON. Check your inbox."
+        )
 
     @app.errorhandler(NotFoundError)
     def _not_found(error: NotFoundError):
