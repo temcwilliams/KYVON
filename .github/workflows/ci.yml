@@ -45,6 +45,56 @@ jobs:
       - name: Build image
         run: docker build -t kyvon:ci .
 
+  ios:
+    # The Swift client has never been compiled locally (no usable Xcode on the dev machine), so
+    # GitHub's macOS runners are where it gets built and tested.
+    runs-on: macos-14
+    defaults:
+      run:
+        working-directory: ios
+    steps:
+      - uses: actions/checkout@v4
+      - name: Swift version
+        run: swift --version
+      - name: Build the package (macOS)
+        run: swift build
+      - name: Unit tests (API client, SSE, models)
+        run: swift test
+      - name: Build for the iOS simulator
+        run: |
+          xcodebuild -scheme KYVONApp -destination 'generic/platform=iOS Simulator' \
+            -skipPackagePluginValidation build CODE_SIGNING_ALLOWED=NO
+
+  ios-ipa:
+    # An UNSIGNED app file for sideloading from Windows (Sideloadly / AltStore re-sign it with a free
+    # Apple ID; it then expires after 7 days). Push entitlement is left out: free accounts can't sign it.
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate the Xcode project
+        working-directory: ios
+        run: xcodegen generate
+      - name: Archive without signing
+        working-directory: ios
+        run: |
+          xcodebuild -project KYVON.xcodeproj -scheme KYVON -configuration Release -sdk iphoneos \
+            -archivePath build/KYVON.xcarchive archive \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" CODE_SIGN_ENTITLEMENTS=""
+      - name: Package the .ipa
+        working-directory: ios
+        run: |
+          mkdir -p Payload
+          cp -R build/KYVON.xcarchive/Products/Applications/KYVON.app Payload/
+          zip -qry KYVON-unsigned.ipa Payload
+          ls -lh KYVON-unsigned.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KYVON-unsigned-ipa
+          path: ios/KYVON-unsigned.ipa
+          retention-days: 14
+
   secrets:
     runs-on: ubuntu-24.04
     steps:

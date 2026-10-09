@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KYVON: your personal AI assistant</title>
+<meta name="description" content="Download KYVON for iPhone and set up your own assistant server.">
+<style>
+:root{--bg:#fafaf9;--card:#fff;--text:#1c1c1a;--muted:#5f5e5a;--line:#e3e1da;--accent:#185fa5;--accent-text:#fff;--warn-bg:#faeeda;--warn-text:#633806;--code:#f1efe8}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--card:#171a21;--text:#ececea;--muted:#a3a29c;--line:#2a2e38;--accent:#6ea8ff;--accent-text:#06101f;--warn-bg:#3a2e12;--warn-text:#fac775;--code:#1d212a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:720px;margin:0 auto;padding:48px 16px 64px}
+h1{font-size:2.2rem;margin:0 0 8px;font-weight:600}
+h2{font-size:1.35rem;margin:40px 0 12px;font-weight:600}
+h3{font-size:1.05rem;margin:20px 0 6px;font-weight:600}
+p{margin:0 0 12px}
+a{color:var(--accent)}
+.lead{font-size:1.15rem;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;margin:16px 0}
+.btn{display:inline-block;background:var(--accent);color:var(--accent-text);padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:600;margin:4px 8px 4px 0}
+.btn.alt{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+.warn{background:var(--warn-bg);color:var(--warn-text);border-radius:10px;padding:14px 16px;margin:16px 0}
+ol,ul{padding-left:22px;margin:0 0 12px}
+li{margin:6px 0}
+pre{background:var(--code);border-radius:10px;padding:14px;overflow-x:auto;font-size:.88rem;line-height:1.5}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9em;background:var(--code);padding:1px 5px;border-radius:5px}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;font-size:.95rem}
+th,td{border-bottom:1px solid var(--line);text-align:left;padding:8px 6px;vertical-align:top}
+footer{margin-top:48px;color:var(--muted);font-size:.9rem}
+</style>
+</head>
+<body>
+<main>
+<h1>KYVON</h1>
+<p class="lead">A personal AI assistant that runs on a server you control. Chat, tasks, memory, and reminders, and it asks before it acts.</p>
+
+<div class="warn" role="note"><strong>Early release.</strong> The iPhone app has been compiled and unit-tested by an automated build, but it has not been tried on a real phone yet. The web app version is the most tested way to use KYVON today.</div>
+
+<h2>1. You need a KYVON server first</h2>
+<p>KYVON is an app for a server that you run. The app does nothing until you point it at one. Pick whichever you like:</p>
+<div class="card">
+<h3>Quick local try</h3>
+<p>You need Python 3.12 or newer, and a Groq API key (create one at console.groq.com).</p>
+<pre><code>git clone https://github.com/temcwilliams/jarvis-assistant.git kyvon
+cd kyvon
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+cp .env.example .env          # then put your GROQ_API_KEY in .env
+.venv/bin/flask --app wsgi kyvon db-upgrade
+.venv/bin/flask --app wsgi kyvon create-user     # choose your username and password
+.venv/bin/python app.py                          # opens on http://localhost:8080</code></pre>
+<p>Windows is untested. If you try it, the commands are usually <code>.venv\Scripts\python</code> and <code>.venv\Scripts\flask</code> in place of <code>.venv/bin/...</code>. The always-on setup below expects Linux.</p>
+</div>
+<div class="card">
+<h3>Always-on server (so your phone can reach it)</h3>
+<p>Run it on a small Linux machine or cloud VM, behind HTTPS. The repository's
+<a href="https://github.com/temcwilliams/jarvis-assistant/blob/main/docs/DEPLOYMENT.md">deployment guide</a>
+covers the service file, backups, and a Cloudflare Tunnel for HTTPS. The app only talks to <code>https://</code> addresses.
+Use a <strong>fixed</strong> address: a temporary "quick tunnel" address changes every time it restarts.</p>
+</div>
+
+<h2>2. Get KYVON on your phone</h2>
+<div class="card">
+<h3>Option A: the web app (free, easiest)</h3>
+<ol>
+<li>On your iPhone, open your server's <code>https://</code> address in Safari.</li>
+<li>Sign in with the username and password you created.</li>
+<li>Tap Share, then <strong>Add to Home Screen</strong>.</li>
+</ol>
+<p>It then opens full screen like an app, with chat, tasks, memory, voice, and approvals.</p>
+</div>
+<div class="card">
+<h3>Option B: the iPhone app (free sideload, from Windows)</h3>
+<p>
+<a class="btn" href="https://github.com/temcwilliams/jarvis-assistant/releases/latest/download/KYVON-unsigned.ipa">Download KYVON-unsigned.ipa</a>
+<a class="btn alt" href="https://github.com/temcwilliams/jarvis-assistant/releases">All releases</a>
+</p>
+<p>If the download says "not found", no release has been published yet. Check the releases page.</p>
+<ol>
+<li>Install <strong>iTunes</strong> (the version from apple.com, not the Microsoft Store one) and <strong>Sideloadly</strong> (sideloadly.io) or <strong>AltStore</strong> on your PC.</li>
+<li>Plug in your iPhone and tap Trust when asked.</li>
+<li>Drag the <code>.ipa</code> into Sideloadly and sign in with your Apple ID. The tool needs this to sign the app for your phone. Use an account you are comfortable with and read the tool's own privacy notes.</li>
+<li>On the phone: Settings, General, VPN and Device Management, tap your Apple ID, then Trust.</li>
+<li>Open KYVON, read and accept the data notice, enter your server's <code>https://</code> address, and sign in.</li>
+</ol>
+<p>Limits of the free route: the app stops working after <strong>7 days</strong> and must be installed again, you can have 3 sideloaded apps at a time, and push notifications are not available.</p>
+</div>
+<div class="card">
+<h3>Option C: the App Store</h3>
+<p>Not available. Publishing needs a paid Apple Developer account, and KYVON is not listed.</p>
+</div>
+
+<h2>Compatibility</h2>
+<table>
+<tr><th>Device</th><th>Works with</th></tr>
+<tr><td>iPhone and iPad app</td><td>iOS and iPadOS 15 or later</td></tr>
+<tr><td>Web app</td><td>Any modern browser; installable on iPhone from Safari (iOS 16.4 or later for notifications)</td></tr>
+<tr><td>Server</td><td>Python 3.12 or newer. Tested on Linux and macOS; Windows is untested</td></tr>
+</table>
+
+<h2>Your data</h2>
+<p>Your chats, tasks, and memories are stored on <strong>your</strong> server. The app has no ads, analytics, or tracking.
+To write replies your server sends your messages to an AI provider (Groq by default), and voice recordings go to Groq to be transcribed.
+The app asks for your agreement before it connects.
+Read the <a href="https://github.com/temcwilliams/jarvis-assistant/blob/main/docs/legal/PRIVACY_POLICY.md">privacy policy</a>
+and the <a href="https://github.com/temcwilliams/jarvis-assistant/blob/main/docs/legal/TERMS_OF_USE.md">terms of use</a>.
+AI replies can be wrong, so check anything important.</p>
+
+<h2>Problems or questions</h2>
+<p>Open an issue on the <a href="https://github.com/temcwilliams/jarvis-assistant/issues">project page</a>.</p>
+
+<footer>KYVON is an independent project. It is not made or endorsed by Apple, Groq, or Google. iPhone and iOS are trademarks of Apple Inc.</footer>
+</main>
+</body>
+</html>
