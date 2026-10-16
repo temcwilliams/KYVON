@@ -40,6 +40,13 @@ body {
     font-size: 15px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+
+    /* Phones: never pan sideways, but still allow vertical scroll and pinch zoom. */
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
+    touch-action: pan-y pinch-zoom;
 
     background: var(--ink);
     color: var(--text);
@@ -48,6 +55,7 @@ body {
 .app {
     display: flex;
     justify-content: center;
+    max-width: 100vw;
 
     width: 100%;
     height: 100%;
@@ -169,6 +177,7 @@ header {
     display: flex;
     flex-direction: column;
 
+    overflow-x: hidden;
     overflow-y: auto;
     padding: 8px 2px 12px;
 
@@ -667,7 +676,10 @@ header {
 
 .panel {
     flex: 1;
+    min-width: 0;
+    overflow-x: hidden;
     overflow-y: auto;
+    overflow-wrap: anywhere;
 
     padding: 16px;
 }
