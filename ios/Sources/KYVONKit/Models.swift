@@ -130,10 +130,18 @@ public struct AccountUser: Codable, Equatable, Sendable {
     public let role: String
 }
 
+/// Which terms version the account accepted, and whether it must accept the current one.
+public struct TermsStatus: Codable, Equatable, Sendable {
+    public let current: String
+    public let accepted: String?
+    public let updateRequired: Bool
+}
+
 public struct AccountInfo: Codable, Equatable, Sendable {
     public let user: AccountUser
     public let hosted: Bool
     public let usage: UsageSummary?
+    public let terms: TermsStatus?
 }
 
 // Response envelopes

@@ -5,7 +5,7 @@ from __future__ import annotations
 from pydantic import Field
 
 from kyvon.llm.prompts import WEB_SYSTEM_PROMPT
-from kyvon.services.errors import EmailNotVerified, QuotaExceeded
+from kyvon.services.errors import EmailNotVerified, QuotaExceeded, TermsUpdateRequired
 from kyvon.services.usage_service import UsageGate
 from kyvon.tools.base import ToolArgs, ToolContext, ToolError
 from kyvon.tools.registry import ToolRegistry
@@ -39,7 +39,7 @@ def register(registry: ToolRegistry) -> None:
         if gate is not None:
             try:
                 gate.check("search")
-            except (QuotaExceeded, EmailNotVerified) as error:
+            except (QuotaExceeded, EmailNotVerified, TermsUpdateRequired) as error:
                 raise ToolError(str(error)) from error
         answer = services.llm.complete(
             [

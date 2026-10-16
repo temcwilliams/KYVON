@@ -98,6 +98,16 @@ journalctl -u kyvon -n 50 --no-pager
 The unit runs `kyvon doctor` and `db-upgrade` before every start, so a bad configuration fails with a
 readable message instead of a broken service.
 
+**Updating the code.** If the app is started by hand (not through this unit), run both commands
+yourself after every `git pull` and before restarting. Without `db-upgrade`, new code queries
+columns that do not exist yet and every login fails with "Internal server error"
+(`no such column: users.email`). `doctor` reports pending migrations; back up `data/kyvon.db` first.
+
+```bash
+.venv/bin/flask --app wsgi kyvon doctor
+.venv/bin/flask --app wsgi kyvon db-upgrade
+```
+
 **8. Verify**
 
 ```bash

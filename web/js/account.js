@@ -97,6 +97,30 @@ function emailSection(user) {
     return h("section", { class: "admin-section" }, ...children);
 }
 
+function termsSection(terms) {
+    if (!terms || !terms.update_required) return null;
+    const message = h("p", { class: "account-note" },
+        "Our terms have changed. Please review and accept the updated terms to keep using KYVON.");
+    return h("section", { class: "admin-section" },
+        h("h3", { class: "section" }, "Updated terms"),
+        message,
+        h("button", {
+            class: "mini",
+            text: "Accept the updated terms",
+            onclick: async event => {
+                event.target.disabled = true;
+                try {
+                    await api("/account/accept-terms", { method: "POST" });
+                    await load();
+                } catch (error) {
+                    event.target.disabled = false;
+                    message.textContent = error.message;
+                }
+            },
+        })
+    );
+}
+
 function usageSection(usage) {
     const rows = ["messages", "tokens", "voice", "searches"].map(name =>
         usage.limits ? bar(name, usage.used[name], usage.limits[name]) : null
@@ -225,6 +249,7 @@ async function load() {
             ...[
                 banner === "success" ? note("Thanks! Your plan will update in a moment.", "good") : null,
                 banner === "cancelled" ? note("No payment was made.") : null,
+                termsSection(account.terms),
                 emailSection(account.user),
                 usageSection(account.usage),
                 billingSection(billing),

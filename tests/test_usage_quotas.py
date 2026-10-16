@@ -311,3 +311,42 @@ def test_deleting_an_account_removes_its_usage_history(small):
     assert events(small, uid)
     client.delete("/api/v1/account", json={"password": PASSWORD})
     assert events(small) == []
+
+
+def test_a_terms_update_blocks_spending_until_accepted(small):
+    from kyvon.models import User
+    from kyvon.services import auth_service
+
+    with small.extensions["kyvon"].session_factory() as s:
+        auth_service.create_user(
+            s, email=EMAIL, password=PASSWORD, verified=True, terms_version="0"
+        )
+    client = login(small.test_client(), EMAIL)
+
+    profile = client.get("/api/v1/account").get_json()
+    assert profile["terms"] == {"current": "1", "accepted": "0", "update_required": True}
+
+    denied = chat(client)
+    assert denied.status_code == 403
+    assert denied.get_json()["error"]["code"] == "terms_update_required"
+    assert events(small) == []
+
+    accepted = client.post("/api/v1/account/accept-terms")
+    assert accepted.status_code == 200 and accepted.get_json()["terms_version"] == "1"
+    assert client.get("/api/v1/account").get_json()["terms"]["update_required"] is False
+    assert chat(client).status_code == 200
+
+    with small.extensions["kyvon"].session_factory() as s:
+        user = s.query(User).filter_by(email=EMAIL.lower()).one()
+        assert user.terms_version == "1" and user.terms_accepted_at is not None
+
+
+def test_operator_created_accounts_are_not_blocked_by_a_terms_update(small):
+    make_verified(small, "ops@example.com")  # no recorded acceptance (created by the CLI)
+    client = login(small.test_client(), "ops@example.com")
+    assert client.get("/api/v1/account").get_json()["terms"]["update_required"] is False
+    assert chat(client).status_code == 200
+
+
+def test_accepting_terms_is_not_available_in_personal_mode(client):
+    assert client.post("/api/v1/account/accept-terms").status_code == 404

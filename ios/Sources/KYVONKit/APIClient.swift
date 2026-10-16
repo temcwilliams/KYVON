@@ -224,6 +224,11 @@ public final class APIClient: @unchecked Sendable {
         try await send(makeRequest("GET", "/account"), as: AccountInfo.self)
     }
 
+    /// Records that the signed-in person accepted the server's current terms (hosted service).
+    public func acceptTerms() async throws {
+        _ = try await send(makeRequest("POST", "/account/accept-terms"), as: OkEnvelope.self)
+    }
+
     public func changePassword(current: String, new: String) async throws {
         struct Body: Encodable { let currentPassword: String; let newPassword: String }
         let body = try body(Body(currentPassword: current, newPassword: new))
