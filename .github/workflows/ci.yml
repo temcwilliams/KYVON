@@ -41,21 +41,18 @@ jobs:
   postgres:
     # The hosted service runs on PostgreSQL: run the real migrations and the hosted journey against one.
     runs-on: ubuntu-24.04
-    services:
-      postgres:
-        image: public.ecr.aws/docker/library/postgres:16  # mirror of the official image
-        env:
-          POSTGRES_USER: kyvon
-          POSTGRES_PASSWORD: kyvon-ci-only
-          POSTGRES_DB: kyvon_test
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U kyvon -d kyvon_test"
-          --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       KYVON_TEST_POSTGRES_URL: postgresql+psycopg://kyvon:kyvon-ci-only@localhost:5432/kyvon_test
     steps:
       - uses: actions/checkout@v4
+      - name: Start the PostgreSQL preinstalled on the runner image
+        # No container registry involved, so no pull rate limits.
+        run: |
+          sudo systemctl start postgresql
+          for i in $(seq 1 30); do sudo -u postgres pg_isready -q && break; sleep 1; done
+          sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE ROLE kyvon LOGIN SUPERUSER PASSWORD 'kyvon-ci-only'"
+          sudo -u postgres createdb -O kyvon kyvon_test
+          pg_isready -h localhost -p 5432 -U kyvon -d kyvon_test
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -86,12 +83,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build image
-        # The AWS mirror and Docker Hub both rate-limit shared runners now and then; try each.
+        # Anonymous pulls get rate limited (429) on every public registry from shared runners, so
+        # try several mirrors of the same official image, with retries, before giving up.
         run: |
-          for base in public.ecr.aws/docker/library/python:3.12-slim python:3.12-slim; do
-            for attempt in 1 2; do
-              docker build --build-arg BASE_IMAGE="$base" -t kyvon:ci . && exit 0
-              sleep 20
+          for base in public.ecr.aws/docker/library/python:3.12-slim mirror.gcr.io/library/python:3.12-slim python:3.12-slim; do
+            for attempt in 1 2 3; do
+              if docker build --build-arg BASE_IMAGE="$base" -t kyvon:ci .; then exit 0; fi
+              echo "build failed from $base (attempt $attempt)"; sleep $((attempt * 15))
             done
           done
           exit 1
