@@ -194,6 +194,13 @@ struct SettingsView: View {
     var body: some View {
         NavStack {
             Form {
+                if model.account?.terms?.updateRequired == true {
+                    Section("Updated terms") {
+                        Text("Our terms have changed. Review and accept the updated terms to keep using KYVON.")
+                        Link("Read the terms", destination: LegalLinks.terms)
+                        Button("Accept the updated terms") { Task { await model.acceptTerms() } }
+                    }
+                }
                 Section("Account") {
                     if case .signedIn(let user) = model.phase { LabeledRow(title: "Signed in as", value: user.username) }
                     if let url = model.client?.baseURL { LabeledRow(title: "Server", value: url.host ?? url.absoluteString) }

@@ -129,6 +129,17 @@ public final class AppModel: ObservableObject {
         do { account = try await client?.account() } catch { handle(error) }
     }
 
+    /// Accepts the updated terms after a terms-version change, then reloads the account.
+    public func acceptTerms() async {
+        guard let client else { return }
+        do {
+            try await client.acceptTerms()
+            errorText = nil
+            infoText = "Thanks. You're all set."
+            await refreshAccount()
+        } catch { handle(error) }
+    }
+
     public func signUp(email: String, password: String, acceptTerms: Bool) async {
         guard let client else { return }
         do {
@@ -350,6 +361,10 @@ public final class AppModel: ObservableObject {
             phase = .signedOut  // the token was revoked or expired
         }
         errorText = describe(error)
+        if let api = error as? APIError, api.code == "terms_update_required" {
+            // Load the account so Settings shows the "accept the updated terms" section.
+            Task { await refreshAccount() }
+        }
     }
 }
 
