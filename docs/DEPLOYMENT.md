@@ -187,6 +187,54 @@ sudo systemctl restart kyvon        # runs doctor + migrations, then starts
 journalctl -u kyvon -n 30 --no-pager
 ```
 
+### Automatic updates
+
+Instead of upgrading by hand, the VM can follow the `main` branch by itself. Only merged,
+CI-passing code goes live; every pull request must pass CI before it reaches `main`.
+
+One-time setup (stop any copy of KYVON you started by hand first, see below):
+
+```bash
+cd /home/traxc93/kyvon-new            # your checkout
+git pull origin main
+sudo ./deploy/install-auto-update.sh
+```
+
+This installs `kyvon.service` (restarts the app if it crashes or the VM reboots),
+`kyvon-update.timer` (checks every 5 minutes) and a sudoers rule that lets the app's user
+start, stop and restart **only** the `kyvon` service. It fills in your real folder and user.
+
+If KYVON is currently running from a terminal, the installer says so and does not touch it.
+Stop that copy (Ctrl+C, or `pkill -f 'gunicorn.*wsgi'`), then `sudo systemctl start kyvon`.
+The Cloudflare tunnel is separate and keeps running; restarting the app does not change its
+address.
+
+What each update does (`deploy/update.sh`):
+
+1. Fetches `main`. Nothing new: it stops quietly.
+2. Backs the database up (`kyvon backup`). If that fails, the update is cancelled.
+3. Fast-forwards the code, installs dependencies only if `requirements.txt` changed, runs
+   `doctor` and `db-upgrade`, restarts the service and waits for `/api/v1/health/ready`.
+4. If any step fails it puts the previous code back and restarts. If the migration itself failed
+   it also restores the backup. A release that migrated fine but is unhealthy is rolled back in
+   code only, so data saved in the meantime is kept (migrations in this project only add
+   columns and tables, which the previous version ignores).
+
+It refuses to run (and says why) if the checkout has uncommitted edits, has commits that are not
+on `origin/main`, or is on another branch, so it can never discard work done by hand.
+
+| Need | Command |
+|---|---|
+| Watch updates | `journalctl -u kyvon-update -f` |
+| Update right now | `sudo systemctl start kyvon-update` |
+| Pause automatic updates | `sudo systemctl stop kyvon-update.timer` |
+| Resume | `sudo systemctl start kyvon-update.timer` |
+| Change how often | edit `OnUnitActiveSec` in `/etc/systemd/system/kyvon-update.timer`, then `sudo systemctl daemon-reload` |
+
+Keep a backup you trust before the first run, and treat a failed rollback line in the journal
+("not healthy either") as urgent. The update uses the same backups as section 4, so
+`kyvon restore` works on them.
+
 ## 6. Operating it
 
 | Need | Command |
