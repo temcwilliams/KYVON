@@ -37,7 +37,7 @@ async function restoreLastConversation() {
 }
 
 function start() {
-    setStatus("ONLINE");
+    setStatus("Online");
     if (started) return;
     started = true;
 
@@ -51,7 +51,6 @@ function start() {
     refreshVoiceConfig();
     startPolling();
     handleOAuthReturn();
-    runDiagnostics();
     // Ask the device for location permission.
     requestLocation();
 }
@@ -79,7 +78,7 @@ function bindControls() {
         state.conversationId = null;
         clearConversation();
         say("Signed out.");
-        setStatus("SIGNED OUT");
+        setStatus("Signed out");
         showLogin();
     });
 
@@ -98,10 +97,10 @@ async function boot() {
     // A link from an email (confirm address / reset password) takes over the sign-in screen,
     // including when the app is already open and only the part after '#' changes.
     window.addEventListener("hashchange", () => {
-        handleEmailLink().then(handled => handled && setStatus("SIGN IN"));
+        handleEmailLink().then(handled => handled && setStatus("Sign in"));
     });
     if (await handleEmailLink()) {
-        setStatus("SIGN IN");
+        setStatus("Sign in");
         return;
     }
 
@@ -111,11 +110,11 @@ async function boot() {
             hideLogin();
             start();
         } else {
-            setStatus("SIGN IN");
+            setStatus("Sign in");
             showLogin();
         }
     } catch {
-        setStatus("OFFLINE");
+        setStatus("Offline");
         showLogin("Unable to reach the KYVON server.");
     }
 }

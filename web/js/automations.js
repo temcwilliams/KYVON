@@ -139,7 +139,7 @@ function scheduleFields() {
 
 registerPanel({
     id: "automations",
-    label: "Auto",
+    label: "Automations",
     mount(container) {
         listEl = h("ul", { class: "list", "aria-label": "Automations" });
         noteEl = h("p", { class: "note", role: "status" });

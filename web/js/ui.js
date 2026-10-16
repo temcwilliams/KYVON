@@ -5,6 +5,7 @@ import { h } from "./dom.js";
 const conversation = document.getElementById("conversation");
 const status = document.getElementById("status");
 const listening = document.getElementById("listening");
+const core = listening.closest(".core");
 
 const STATUS_NOTES = {
     partial: " (interrupted)",
@@ -56,10 +57,12 @@ export function scrollToEnd() {
 
 export function setStatus(text) {
     status.textContent = text;
+    status.dataset.state = text.toLowerCase().replace(/\s+/g, "-");
 }
 
 export function setListening(text) {
     listening.textContent = text;
+    core.classList.toggle("idle", text === "Ready");
 }
 
 export function clearConversation() {

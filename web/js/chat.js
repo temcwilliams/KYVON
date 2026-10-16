@@ -14,7 +14,7 @@ let controller = null;
 export function renderHistory(messages) {
     clearConversation();
     if (!messages.length) {
-        say("Systems initialized. How may I assist?");
+        say("Hi, I'm KYVON. What can I help you with?");
         return;
     }
     for (const message of messages) {
@@ -40,7 +40,7 @@ export function newConversation() {
     if (controller) controller.abort();
     state.conversationId = null;
     clearConversation();
-    say("Systems initialized. How may I assist?");
+    say("Hi, I'm KYVON. What can I help you with?");
     emit("conversation:opened", null);
     input.focus();
 }
@@ -75,7 +75,7 @@ function showToolActivity(event) {
 
 function setBusy(busy) {
     state.busy = busy;
-    sendButton.textContent = busy ? "STOP" : "SEND";
+    sendButton.dataset.busy = String(busy);
     sendButton.setAttribute("aria-label", busy ? "Stop response" : "Send message");
 }
 
@@ -90,8 +90,8 @@ export async function sendMessage() {
     emit("turn:start");
     addMessage("You", message, "user");
     input.value = "";
-    setStatus("THINKING");
-    setListening("PROCESSING");
+    setStatus("Thinking");
+    setListening("Working on it");
     setBusy(true);
 
     controller = new AbortController();
@@ -143,8 +143,8 @@ export async function sendMessage() {
     } finally {
         controller = null;
         setBusy(false);
-        setStatus("ONLINE");
-        setListening("STANDBY");
+        setStatus("Online");
+        setListening("Ready");
         emit("conversations:changed");
         if (failed) input.focus();
     }

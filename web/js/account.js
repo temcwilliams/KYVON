@@ -265,7 +265,7 @@ async function load() {
 export function registerAccountPanel() {
     registerPanel({
         id: "account",
-        label: "ACCOUNT",
+        label: "Account",
         mount(el) {
             bodyEl = el;
             load();

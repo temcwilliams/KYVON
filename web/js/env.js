@@ -15,7 +15,7 @@ export function requestLocation() {
         return;
     }
 
-    setListening("REQUESTING LOCATION");
+    setListening("Finding your location");
 
     navigator.geolocation.getCurrentPosition(
         async position => {
@@ -31,17 +31,17 @@ export function requestLocation() {
                     location: data.location,
                     weather: data.weather,
                 };
-                setStatus("ONLINE");
-                setListening("LOCATION READY");
+                setStatus("Online");
+                setListening("Location ready");
             } catch (error) {
                 console.error(error);
-                setListening("LOCATION ERROR");
+                setListening("Location unavailable");
             }
         },
         error => {
             console.error("Location error:", error);
-            setStatus("ONLINE");
-            setListening("LOCATION DENIED");
+            setStatus("Online");
+            setListening("Location access denied");
             say(
                 "I don't currently have permission to access your location. " +
                     "You can enable Location Services for this site in your browser settings."

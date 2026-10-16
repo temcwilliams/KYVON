@@ -6,24 +6,24 @@ import { say } from "./ui.js";
 
 // ``deep`` also tests the AI connection (costs one model call).
 export async function runDiagnostics({ deep = false } = {}) {
-    say("Running system diagnostics...");
+    say("Checking system status...");
 
     try {
         const data = await api(`/status${deep ? "?deep=1" : ""}`);
 
-        let result = "SYSTEM DIAGNOSTICS\n\n";
+        let result = "System status\n\n";
         for (const item of data.diagnostics) {
-            result += `[${item.status}] ${item.name}: ${item.details}\n`;
+            result += `${item.name}: ${item.details} (${String(item.status).toLowerCase()})\n`;
         }
 
         const environment = getEnvironment();
         if (environment) {
-            result += "\nLOCATION SYSTEM: ONLINE\n";
+            result += "\n";
             result += `Location: ${environment.location.display}\n`;
             result += `Weather: ${environment.weather.condition}\n`;
             result += `Temperature: ${environment.weather.temperature}°F\n`;
         } else {
-            result += "\nLOCATION SYSTEM: WAITING FOR PERMISSION\n";
+            result += "\nLocation: not shared yet. Allow location access in your browser to use it.\n";
         }
 
         say(result);

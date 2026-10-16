@@ -20,7 +20,7 @@ export function isOnline() {
 function apply() {
     banner.hidden = online;
     sendButton.disabled = !online && !state.busy;
-    if (!online) setStatus("OFFLINE");
+    if (!online) setStatus("Offline");
 }
 
 function setOnline(value) {
@@ -29,7 +29,7 @@ function setOnline(value) {
     apply();
     if (online) {
         delay = MIN_DELAY;
-        setStatus("ONLINE");
+        setStatus("Online");
         emit("connection:restored");
     } else {
         emit("connection:lost");

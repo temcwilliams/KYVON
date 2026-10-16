@@ -25,10 +25,10 @@ let recognition = null;
 
 function setState(next) {
     state = next;
-    const labels = { idle: "STANDBY", recording: "LISTENING", transcribing: "TRANSCRIBING", speaking: "SPEAKING" };
+    const labels = { idle: "Ready", recording: "Listening", transcribing: "Transcribing", speaking: "Speaking" };
     setListening(labels[next]);
-    setStatus(next === "idle" ? "ONLINE" : labels[next]);
-    micButton.textContent = { idle: "🎙️", recording: "⏹️", transcribing: "…", speaking: "🔇" }[next];
+    setStatus(next === "idle" ? "Online" : labels[next]);
+    micButton.dataset.state = next;
     micButton.setAttribute("aria-pressed", String(next === "recording"));
     micButton.setAttribute(
         "aria-label",
