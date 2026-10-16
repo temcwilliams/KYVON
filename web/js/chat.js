@@ -135,6 +135,8 @@ export async function sendMessage() {
             say(error.message + " Open the menu and choose ACCOUNT to see your plan or upgrade.");
         } else if (error instanceof ApiError && error.code === "email_unverified") {
             say(error.message);
+        } else if (error instanceof ApiError && error.code === "terms_update_required") {
+            say(error.message + " Open the menu and choose ACCOUNT to review and accept them.");
         } else if (!(error instanceof ApiError && error.status === 401)) {
             say("I encountered an error: " + error.message);
         }
