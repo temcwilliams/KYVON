@@ -244,6 +244,28 @@ final class KYVONKitTests: XCTestCase {
         XCTAssertEqual(second.usage?.planName, "Administrator")
     }
 
+    func testAccountDecodesTheTermsStatusAndOlderServersOmitIt() async throws {
+        let transport = MockTransport()
+        let user = #""user": {"id": 1, "username": "u", "email": "a@b.co", "email_verified": true, "role": "user"}, "hosted": true"#
+        let withTerms = "{\(user), \"terms\": {\"current\": \"2\", \"accepted\": \"1\", \"update_required\": true}}"
+        let without = "{\(user)}"
+        transport.responses = [(200, withTerms), (200, without)]
+        let client = APIClient(baseURL: base, tokens: InMemoryTokenStore(token: "t"), transport: transport)
+        let first = try await client.account()
+        XCTAssertEqual(first.terms, TermsStatus(current: "2", accepted: "1", updateRequired: true))
+        let second = try await client.account()
+        XCTAssertNil(second.terms)
+    }
+
+    func testAcceptTermsPostsToTheAccountEndpoint() async throws {
+        let transport = MockTransport()
+        transport.responses = [(200, #"{"ok": true, "terms_version": "2"}"#)]
+        let client = APIClient(baseURL: base, tokens: InMemoryTokenStore(token: "t"), transport: transport)
+        try await client.acceptTerms()
+        XCTAssertEqual(transport.requests[0].httpMethod, "POST")
+        XCTAssertEqual(transport.requests[0].url?.path, "/api/v1/account/accept-terms")
+    }
+
     func testDeleteAccountSendsPasswordAndClearsTheToken() async throws {
         let transport = MockTransport()
         let store = InMemoryTokenStore(token: "kyv_x")

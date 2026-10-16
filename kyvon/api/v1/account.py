@@ -11,6 +11,7 @@ from kyvon.api.errors import ApiError
 from kyvon.api.schemas import ChangePasswordRequest, DeleteAccountRequest
 from kyvon.api.v1.auth import _clear_auth_cookies, user_json
 from kyvon.services import account_service, auth_service, email_service, usage_service
+from kyvon.services.usage_service import terms_update_required
 
 bp = Blueprint("account", __name__, url_prefix="/api/v1/account")
 
@@ -25,8 +26,25 @@ def profile():
         "hosted": settings.hosted,
     }
     if settings.hosted:
+        payload["terms"] = {
+            "current": settings.terms_version,
+            "accepted": g.user.terms_version,
+            "update_required": terms_update_required(settings, g.user),
+        }
+    if settings.hosted:
         payload["usage"] = usage_service.summary(get_session(), settings, g.user)
     return jsonify(payload)
+
+
+@bp.post("/accept-terms")
+@login_required
+def accept_terms():
+    """Accept the current terms (shown after an update). Always records the server's version."""
+    settings = services().settings
+    if not settings.hosted:
+        raise ApiError(404, "not_found", "Not found.")
+    auth_service.accept_terms(get_session(), g.user, settings.terms_version)
+    return jsonify({"ok": True, "terms_version": settings.terms_version})
 
 
 @bp.get("/usage")

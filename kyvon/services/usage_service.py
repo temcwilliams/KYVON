@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from kyvon.config import Settings
 from kyvon.db import utcnow
 from kyvon.models import UsageEvent, User
-from kyvon.services.errors import EmailNotVerified, QuotaExceeded
+from kyvon.services.errors import EmailNotVerified, QuotaExceeded, TermsUpdateRequired
 
 LIMIT_NAMES = ("messages", "tokens", "voice", "searches")
 
@@ -80,6 +80,15 @@ _NEEDS = {
 }
 
 
+def terms_update_required(settings, user: User) -> bool:
+    """True when the account accepted an older terms version than the current one.
+
+    Accounts that never recorded an acceptance (created by an operator with the CLI) are not
+    blocked; only a version bump asks people to accept again.
+    """
+    return bool(user.terms_version) and user.terms_version != settings.terms_version
+
+
 class UsageGate:
     def __init__(
         self,
@@ -108,6 +117,8 @@ class UsageGate:
             return
         if not user.email_verified:
             raise EmailNotVerified("Confirm your email address first.")
+        if terms_update_required(self._settings, user):
+            raise TermsUpdateRequired("Our terms have changed. Review and accept them to continue.")
         limits = limits_for(self._settings, plan) or {}
         start, resets = month_bounds(self._now())
         used = totals(self._s, user.id, start)

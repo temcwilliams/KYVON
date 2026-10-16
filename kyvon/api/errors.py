@@ -15,6 +15,7 @@ from kyvon.services.errors import (
     NotConnectedError,
     NotFoundError,
     QuotaExceeded,
+    TermsUpdateRequired,
     ValidationFailure,
 )
 from kyvon.utils.redact import redact
@@ -56,6 +57,10 @@ def register_error_handlers(app: Flask) -> None:
         return error_response(
             403, "email_unverified", "Confirm your email address to use KYVON. Check your inbox."
         )
+
+    @app.errorhandler(TermsUpdateRequired)
+    def _terms(error: TermsUpdateRequired):
+        return error_response(403, "terms_update_required", str(error))
 
     @app.errorhandler(NotFoundError)
     def _not_found(error: NotFoundError):
