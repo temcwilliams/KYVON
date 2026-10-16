@@ -25,6 +25,10 @@ class EmailNotVerified(PermissionError):
     """Hosted accounts must confirm their email before anything that costs money."""
 
 
+class TermsUpdateRequired(PermissionError):
+    """The terms changed since this account last accepted them; accept again to continue."""
+
+
 class QuotaExceeded(RuntimeError):
     """The account used up its allowance for this period."""
 

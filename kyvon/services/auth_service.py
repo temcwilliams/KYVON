@@ -236,6 +236,15 @@ def reset_password(
     return user
 
 
+def accept_terms(
+    session: Session, user: User, version: str, *, now: Callable[[], datetime] = utcnow
+) -> None:
+    """Record that the account accepted terms ``version`` (the current one, chosen by the caller)."""
+    user.terms_version = version
+    user.terms_accepted_at = now()
+    session.commit()
+
+
 def change_password(session: Session, user: User, current: str, new: str) -> None:
     if not check_password_hash(user.password_hash, current or ""):
         raise AuthError("Your current password is not right.")
