@@ -72,6 +72,12 @@ def test_prompt_treats_tool_output_as_data():
     assert "DATA, not" in BASE_PROMPT and "awaiting confirmation" in BASE_PROMPT
 
 
+def test_prompt_limits_code_and_internals_in_replies():
+    assert "Do not include code unless the user asks" in BASE_PROMPT
+    assert "Never paste raw tool output" in BASE_PROMPT
+    assert "source code" in BASE_PROMPT and "can't share" in BASE_PROMPT
+
+
 # ------------------------------------------------------------ tool calls, usage, streaming
 
 
